@@ -1,0 +1,356 @@
+.empleados-container {
+    display: grid;
+    gap: 18px;
+}
+
+.empleados-container .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.empleados-container .header h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+}
+
+.empleados-container .header .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.empleados-container .search-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 14px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1.2fr auto auto;
+    gap: 10px;
+}
+
+.empleados-container .tabla-responsive {
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.empleados-container table {
+    min-width: 860px;
+}
+
+.empleados-container .acciones {
+    display: flex;
+    gap: 8px;
+}
+
+.empleados-container .acciones button {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.empleados-container .acciones button:nth-child(1) {
+    background: #0EA5E9;
+}
+
+.empleados-container .acciones button:nth-child(1):hover {
+    background: #0284C7;
+}
+
+.empleados-container .acciones button:nth-child(2) {
+    background: #2563EB;
+}
+
+.empleados-container .acciones button:nth-child(2):hover {
+    background: #1D4ED8;
+}
+
+.empleados-container .acciones button:nth-child(3) {
+    background: #DC2626;
+}
+
+.empleados-container .acciones button:nth-child(3):hover {
+    background: #B91C1C;
+}
+
+.empleados-container .acciones .accion-ver {
+    background: #0EA5E9;
+}
+
+.empleados-container .acciones .accion-ver:hover {
+    background: #0284C7;
+}
+
+.empleados-container .acciones .accion-editar {
+    background: #2563EB;
+}
+
+.empleados-container .acciones .accion-editar:hover {
+    background: #1D4ED8;
+}
+
+.empleados-container .acciones .accion-exportar {
+    background: #0B5FA5;
+}
+
+.empleados-container .acciones .accion-exportar:hover {
+    background: #084A81;
+}
+
+.empleados-container .acciones .accion-eliminar {
+    background: #DC2626;
+}
+
+.empleados-container .acciones .accion-eliminar:hover {
+    background: #B91C1C;
+}
+
+@media (max-width: 1120px) {
+    .empleados-container .search-box {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 760px) {
+    .empleados-container .search-box {
+        grid-template-columns: 1fr;
+    }
+
+    .empleados-container .header .header-actions {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .empleados-container .btn-primary,
+    .empleados-container .btn-secondary {
+        width: 100%;
+    }
+}
+
+.csv-import-modal {
+    width: min(1180px, 100%);
+    max-height: 92vh;
+    overflow: auto;
+    padding: 22px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+    display: grid;
+    gap: 14px;
+}
+
+.csv-import-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.csv-import-header h2 {
+    font-size: 1.25rem;
+}
+
+.csv-help {
+    font-size: .92rem;
+    color: #64748B;
+}
+
+.csv-import-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.csv-dropzone {
+    border: 2px dashed #93C5FD;
+    border-radius: 14px;
+    background: #EFF6FF;
+    padding: 26px 14px;
+    text-align: center;
+    color: #1E40AF;
+    transition: border-color .2s ease, background-color .2s ease;
+}
+
+.csv-dropzone.activo {
+    border-color: var(--primary);
+    background: #DBEAFE;
+}
+
+.csv-dropzone small {
+    display: block;
+    margin-top: 6px;
+    color: #475569;
+}
+
+.csv-status {
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: .92rem;
+}
+
+.csv-status.info {
+    color: #1E3A8A;
+    background: #DBEAFE;
+}
+
+.csv-status.warning {
+    color: #92400E;
+    background: #FEF3C7;
+}
+
+.csv-status.error {
+    color: #991B1B;
+    background: #FEE2E2;
+}
+
+.csv-status.success {
+    color: #166534;
+    background: #DCFCE7;
+}
+
+.csv-kpis {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.csv-kpi {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #F8FAFC;
+    padding: 12px;
+    display: grid;
+    gap: 4px;
+}
+
+.csv-kpi span {
+    font-size: .86rem;
+    color: #64748B;
+}
+
+.csv-kpi strong {
+    font-size: 1.2rem;
+}
+
+.csv-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.csv-progress-track {
+    height: 11px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: #E2E8F0;
+    flex: 1;
+}
+
+.csv-progress-bar {
+    height: 100%;
+    width: 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2563EB, #3B82F6);
+    transition: width .2s ease;
+}
+
+.csv-table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: auto;
+    background: var(--surface);
+}
+
+.csv-table-wrap h3 {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 1rem;
+}
+
+.csv-table-wrap table {
+    min-width: 840px;
+}
+
+.estado-exito,
+.estado-error {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: .8rem;
+    font-weight: 700;
+}
+
+.estado-exito {
+    color: #166534;
+    background: #DCFCE7;
+}
+
+.estado-error {
+    color: #991B1B;
+    background: #FEE2E2;
+}
+
+.qr-export-modal {
+    width: min(560px, 100%);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+    padding: 20px;
+    display: grid;
+    gap: 14px;
+}
+
+.qr-export-modal h2 {
+    color: #0B5FA5;
+}
+
+.qr-export-info {
+    display: grid;
+    gap: 6px;
+}
+
+.qr-export-info p {
+    color: #1A1D21;
+}
+
+.qr-export-image {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+    background: #F8FAFC;
+}
+
+.qr-export-image img {
+    width: 220px;
+    height: 220px;
+    object-fit: contain;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #FFFFFF;
+    padding: 8px;
+}
+
+.qr-export-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.qr-export-actions button {
+    min-width: 140px;
+}

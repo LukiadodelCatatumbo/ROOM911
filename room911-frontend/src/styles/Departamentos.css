@@ -1,0 +1,112 @@
+.departamentos-container {
+    display: grid;
+    gap: 18px;
+}
+
+.departamentos-container .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.departamentos-container .header h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+}
+
+.departamentos-container .search-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 14px;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+}
+
+.departamentos-container .table-container {
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.departamentos-container table {
+    min-width: 820px;
+}
+
+.departamentos-container .estado {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: .82rem;
+    font-weight: 700;
+}
+
+.departamentos-container .estado.activo {
+    color: #166534;
+    background: #DCFCE7;
+}
+
+.departamentos-container .estado.inactivo {
+    color: #991B1B;
+    background: #FEE2E2;
+}
+
+.departamentos-container .acciones {
+    display: flex;
+    gap: 8px;
+}
+
+.departamentos-container .acciones button {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    color: #FFFFFF;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.departamentos-container .acciones button:first-child {
+    background: #2563EB;
+}
+
+.departamentos-container .acciones button:first-child:hover {
+    background: #1D4ED8;
+}
+
+.departamentos-container .acciones button:nth-child(2) {
+    background: #DC2626;
+}
+
+.departamentos-container .acciones button:nth-child(2):hover {
+    background: #B91C1C;
+}
+
+.departamentos-container .acciones button:disabled {
+    background: #94A3B8;
+    cursor: not-allowed;
+}
+
+.departamentos-container .sin-registros {
+    text-align: center;
+    color: #64748B;
+    padding: 28px;
+}
+
+@media (max-width: 760px) {
+    .departamentos-container .search-box {
+        grid-template-columns: 1fr;
+    }
+
+    .departamentos-container .btn-primary,
+    .departamentos-container .btn-secondary {
+        width: 100%;
+    }
+}

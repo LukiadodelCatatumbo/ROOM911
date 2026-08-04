@@ -1,0 +1,44 @@
+.intentos-container {
+    display: grid;
+    gap: 16px;
+    overflow-x: auto;
+}
+
+.intentos-container .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.intentos-container .header h1 {
+    font-size: clamp(1.5rem, 2.8vw, 2rem);
+}
+
+.intentos-container table {
+    min-width: 920px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.estado-exito,
+.estado-error {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: .82rem;
+    font-weight: 700;
+}
+
+.estado-exito {
+    color: #166534;
+    background: #DCFCE7;
+}
+
+.estado-error {
+    color: #991B1B;
+    background: #FEE2E2;
+}

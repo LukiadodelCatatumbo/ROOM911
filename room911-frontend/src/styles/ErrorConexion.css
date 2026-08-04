@@ -1,0 +1,155 @@
+.error-page{
+
+    min-height:100vh;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    background:#B7791F;
+
+}
+
+.error-card{
+
+    width:100%;
+
+    max-width:600px;
+
+    background:white;
+
+    border-radius:10px;
+
+    padding:50px;
+
+    text-align:center;
+
+}
+
+.warning-icon{
+
+    font-size:90px;
+
+    color:#B7791F;
+
+    margin-bottom:20px;
+
+}
+
+.error-card h1{
+
+    color:#B7791F;
+
+    margin-bottom:20px;
+
+}
+
+.error-card p{
+
+    margin-bottom:30px;
+
+}
+
+.error-subtitulo{
+
+    color:#6b7280;
+
+    margin-bottom:30px;
+
+    font-size:1rem;
+
+}
+
+.error-detalles{
+
+    border-top:1px solid #e5e7eb;
+
+    border-bottom:1px solid #e5e7eb;
+
+    padding:20px 0;
+
+    margin-bottom:30px;
+
+}
+
+.info-item{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin:14px 0;
+
+}
+
+.info-label{
+
+    color:#6b7280;
+
+}
+
+.info-val{
+
+    font-size:1rem;
+
+    font-weight:600;
+
+    color:#1f2937;
+
+}
+
+.btn-reintentar{
+
+    width:100%;
+
+    padding:14px;
+
+    border:none;
+
+    border-radius:8px;
+
+    background:#B7791F;
+
+    color:white;
+
+    font-size:16px;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:.25s;
+
+}
+
+.btn-reintentar:hover{
+
+    background:#996317;
+
+}
+
+.error-footer{
+
+    margin-top:25px;
+
+    padding-top:18px;
+
+    border-top:1px solid #e5e7eb;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    gap:10px;
+
+    color:#6b7280;
+
+    font-weight:600;
+
+}

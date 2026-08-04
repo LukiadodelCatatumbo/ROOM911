@@ -1,0 +1,22 @@
+# IntelliJ / VSCode
+.idea/
+.vscode/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Frontend
+room911-frontend/node_modules/
+room911-frontend/dist/
+
+# Backend
+backend_911/backend/target/
+backend_911/backend/.mvn/wrapper/maven-wrapper.jar
+
+# Logs
+*.log
+
+# Archivos temporales
+*.tmp
+*.swp
