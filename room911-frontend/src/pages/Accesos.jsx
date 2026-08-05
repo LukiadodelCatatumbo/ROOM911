@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
     FaBuilding,
     FaClock,
@@ -8,10 +9,10 @@ import {
     FaCloud,
     FaDatabase,
     FaServer,
-    FaQrcode,
-    FaIdCard
+    FaQrcode
 } from "react-icons/fa";
 
+import jsQR from "jsqr";
 import Sidebar from "../components/Sidebar";
 import api from "../services/api";
 import "../styles/Accesos.css";
@@ -31,7 +32,6 @@ function Accesos() {
 
     const [horaActual, setHoraActual] = useState(new Date());
 
-    const [documento, setDocumento] = useState("");
 
     const [resultado, setResultado] = useState(null);
 
@@ -41,9 +41,10 @@ function Accesos() {
 
     const [intentos, setIntentos] = useState(0);
 
-    const inputDocumento = useRef(null);
     const fileInputRef = useRef(null);
     const [previewQr, setPreviewQr] = useState(null);
+
+    const navigate = useNavigate();
 
     useEffect(() => {
 
@@ -53,10 +54,6 @@ function Accesos() {
 
         return () => clearInterval(intervalo);
 
-    }, []);
-
-    useEffect(() => {
-        inputDocumento.current?.focus();
     }, []);
 
     const claseEstado = useMemo(() => {
@@ -112,108 +109,73 @@ function Accesos() {
             setEstado(ESTADOS.CONCEDIDO);
             setMensajeEstado("Acceso autorizado");
 
+            navigate('/acceso-concedido', {
+                state: {
+                    nombre: data.nombreEmpleado,
+                    departamento: data.departamento,
+                    hora: new Date().toLocaleTimeString()
+                }
+            });
+
         } else {
 
             setEstado(ESTADOS.DENEGADO);
             setMensajeEstado("Acceso denegado");
 
-        }
-
-    };
-
-    const validarDocumento = async (valorDocumento) => {
-
-        setEstado(ESTADOS.VERIFICANDO);
-        setMensajeEstado("Verificando acceso...");
-
-        setIntentos(prev => prev + 1);
-
-        try {
-
-            const response = await api.post("/acceso", {
-                documento: valorDocumento
+            navigate('/acceso-denegado', {
+                state: {
+                    nombre: data.nombreEmpleado || data.documento || "--",
+                    departamento: data.departamento || "--",
+                    hora: new Date().toLocaleTimeString(),
+                    motivo: data.mensaje
+                }
             });
 
-            procesarRespuesta(response.data);
-
-            setDocumento("");
-
-            inputDocumento.current?.focus();
-
-        } catch (error) {
-
-            console.error(error);
-
-            setEstado(ESTADOS.ERROR);
-
-            setMensajeEstado(
-                "Error de conexión con el servidor."
-            );
-
         }
 
     };
 
-    const validarManual = async () => {
 
-        if (!documento.trim()) {
+    const leerQr = (archivo) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement("canvas");
+                        const ctx = canvas.getContext("2d");
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        ctx.drawImage(img, 0, 0, img.width, img.height);
 
-            alert("Ingrese un documento.");
+                        const imageData = ctx.getImageData(0, 0, img.width, img.height);
+                        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                            inversionAttempts: "attemptBoth",
+                        });
 
-            return;
-
-        }
-
-        await validarDocumento(documento.trim());
-
-    };
-
-    const leerQr = async (archivo) => {
-
-        if (!("BarcodeDetector" in window)) {
-
-            throw new Error(
-                "BarcodeDetector no soportado."
-            );
-
-        }
-
-        const detector = new window.BarcodeDetector({
-
-            formats: ["qr_code"]
-
+                        if (code && code.data) {
+                            console.log("codigoQr decoded:", code.data);
+                            resolve(code.data);
+                        } else {
+                            reject(new Error("No se encontró código QR en la imagen."));
+                        }
+                    } catch (err) {
+                        reject(new Error("Error al procesar los píxeles de la imagen."));
+                    }
+                };
+                img.onerror = () => reject(new Error("Error al cargar la imagen seleccionada."));
+                img.src = e.target.result;
+            };
+            reader.onerror = () => reject(new Error("Error al leer el archivo."));
+            reader.readAsDataURL(archivo);
         });
-
-        const bitmap = await createImageBitmap(archivo);
-
-        const codigos = await detector.detect(bitmap);
-
-        if (!codigos.length) {
-
-            throw new Error("No se encontró QR.");
-
-        }
-
-        return codigos[0].rawValue;
-
     };
 
-    const extraerDocumentoDeQr = (codigoRaw) => {
+    // Simplified: the QR contains only the documento string. No heuristics.
+    const obtenerDocumentoDesdeQr = async (codigoRaw) => {
         if (!codigoRaw) return "";
-        const texto = codigoRaw.trim();
-        if (texto.startsWith("http://") || texto.startsWith("https://")) {
-            try {
-                const url = new URL(texto);
-                const segmentos = url.pathname.split("/").filter(Boolean);
-                if (segmentos.length > 0) {
-                    return decodeURIComponent(segmentos[segmentos.length - 1]);
-                }
-            } catch (e) {
-                const partes = texto.split("/");
-                return partes[partes.length - 1];
-            }
-        }
-        return texto;
+        return codigoRaw.trim();
     };
 
     const procesarImagenQr = async (event) => {
@@ -231,18 +193,24 @@ function Accesos() {
         try {
 
             const codigoQr = await leerQr(archivo);
-            const valorExtraido = extraerDocumentoDeQr(codigoQr);
+            console.log("codigoQr (from leerQr):", codigoQr);
 
             setEstado(ESTADOS.VERIFICANDO);
             setMensajeEstado("Verificando credencial en el servidor...");
 
+            // Per specification: QR contains only documento
+            const documentoFinal = (codigoQr || "").trim();
+
+            if (!documentoFinal) {
+                throw new Error('QR vacío o inválido');
+            }
+
+            // Call existing backend endpoint POST /api/acceso
             const response = await api.post("/acceso", {
-                documento: valorExtraido
+                documento: documentoFinal
             });
 
             procesarRespuesta(response.data);
-            if (fileInputRef.current) fileInputRef.current.value = "";
-            setDocumento("");
 
         } catch (error) {
 
@@ -251,15 +219,27 @@ function Accesos() {
             setEstado(ESTADOS.ERROR);
 
             setMensajeEstado(
-                "No fue posible leer el código QR."
+                "No fue posible procesar el código QR."
             );
+
+            // Redirect to denied screen with reason
+            try {
+                navigate('/acceso-denegado', {
+                    state: {
+                        nombre: "Empleado no identificado",
+                        departamento: "--",
+                        hora: new Date().toLocaleTimeString(),
+                        motivo: error?.message || 'QR inválido'
+                    }
+                });
+            } catch (navErr) {
+                // ignore
+            }
 
         } finally {
 
             if (fileInputRef.current) {
-
                 fileInputRef.current.value = "";
-
             }
 
         }
@@ -271,13 +251,11 @@ function Accesos() {
         setEstado(ESTADOS.ESPERANDO);
         setMensajeEstado("Esperando lectura de credencial...");
         setResultado(null);
-        setDocumento("");
         setPreviewQr(null);
 
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
-        inputDocumento.current?.focus();
     };
 
     return (
@@ -356,62 +334,6 @@ function Accesos() {
                 </section>
 
                 <section className="kiosko-inputs">
-
-                    <div className="kiosko-bloque">
-
-                        <h3>
-
-                            <FaIdCard />
-
-                            Documento
-
-                        </h3>
-
-                        <div className="kiosko-manual">
-
-                            <input
-
-                                ref={inputDocumento}
-
-                                type="text"
-
-                                placeholder="Documento del empleado"
-
-                                value={documento}
-
-                                onChange={(e) =>
-                                    setDocumento(e.target.value)
-                                }
-
-                                onKeyDown={(e) => {
-
-                                    if (e.key === "Enter") {
-
-                                        e.preventDefault();
-
-                                        validarManual();
-
-                                    }
-
-                                }}
-
-                            />
-
-                            <button
-
-                                className="btn-primary"
-
-                                onClick={validarManual}
-
-                            >
-
-                                Verificar
-
-                            </button>
-
-                        </div>
-
-                    </div>
 
                     <div className="kiosko-bloque">
 

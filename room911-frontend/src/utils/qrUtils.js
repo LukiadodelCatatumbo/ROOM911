@@ -1,8 +1,5 @@
 import api from "../services/api";
 
-/**
- * Convierte un objeto Blob a Data URL (base64).
- */
 function blobToDataURL(blob) {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -21,9 +18,10 @@ export async function cargarQrDataUrl(empleado) {
     if (!empleado) return null;
 
     const empleadoId = typeof empleado === "object" ? empleado.id : empleado;
+    // QR must contain only the employee documento (per ROOM_911 requirement)
     const valorQr = typeof empleado === "object"
-        ? (empleado.identificadorQr || empleado.documento || `EMP-${empleado.id}`)
-        : `EMP-${empleado}`;
+        ? String(empleado.documento || "")
+        : String(empleado);
 
     // 1. Intentar llamada al backend por si existe el endpoint de QR
     if (empleadoId) {

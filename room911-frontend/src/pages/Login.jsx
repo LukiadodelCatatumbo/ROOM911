@@ -90,6 +90,11 @@ function Login() {
 
             </form>
 
+            <div className="login-help" style={{ marginTop: 12, color: '#6b7280', fontSize: 13 }}>
+                <strong>Usuario de prueba</strong>
+                <div>Usuario: <code>admin</code></div>
+                <div>Contraseña: <code>123456</code></div>
+            </div>
 
             {
                 mensaje &&

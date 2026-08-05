@@ -1,5 +1,6 @@
 package com.room911.controller;
 
+import com.room911.dto.AccessQrRequestDTO;
 import com.room911.dto.AccessRequestDTO;
 import com.room911.dto.AccessResponseDTO;
 import com.room911.service.interfaces.AccessService;
@@ -16,9 +17,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AccesoController {
     private final AccessService accessService;
+
     @PostMapping
     public ResponseEntity<AccessResponseDTO> validarAcceso(
             @Valid @RequestBody AccessRequestDTO dto){
         return ResponseEntity.ok(accessService.validarAcceso(dto));
+    }
+
+    @PostMapping("/qr")
+    public ResponseEntity<AccessResponseDTO> validarAccesoQr(
+            @Valid @RequestBody AccessQrRequestDTO dto){
+        AccessRequestDTO request = AccessRequestDTO.builder()
+                .documento(dto.getCodigoQr())
+                .build();
+        return ResponseEntity.ok(accessService.validarAcceso(request));
     }
 }
