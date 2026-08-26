@@ -71,9 +71,10 @@ public class PdfServiceImpl implements PdfService {
                     "Documento: "
                             + empleado.getDocumento()));
 
+            String nombreDept = empleado.getDepartamento() != null ? empleado.getDepartamento().getNombre() : "General";
             document.add(new Paragraph(
                     "Departamento: "
-                            + empleado.getDepartamento().getNombre()));
+                            + nombreDept));
 
             document.add(new Paragraph(
                     "Cargo: "

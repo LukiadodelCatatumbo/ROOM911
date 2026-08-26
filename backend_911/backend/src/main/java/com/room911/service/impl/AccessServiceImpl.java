@@ -169,7 +169,7 @@ public class AccessServiceImpl implements AccessService {
                 .documento(empleado.getDocumento())
                 .cargo(empleado.getCargo())
                 .departamento(
-                        empleado.getDepartamento().getNombre())
+                        empleado.getDepartamento() != null ? empleado.getDepartamento().getNombre() : "General")
                 .activo(empleado.getActivo())
                 .build();
     }

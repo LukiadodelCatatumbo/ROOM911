@@ -1,5 +1,6 @@
 package com.room911.service.impl;
 
+import com.opencsv.CSVReader;
 import com.room911.dto.EmpleadoDTO;
 import com.room911.dto.EmpleadoResponseDTO;
 import com.room911.entity.Departamento;
@@ -9,15 +10,15 @@ import com.room911.repository.DepartamentoRepository;
 import com.room911.repository.EmpleadoRepository;
 import com.room911.service.interfaces.EmpleadoService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 
+import java.io.InputStreamReader;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmpleadoServiceImpl implements EmpleadoService {
@@ -27,11 +28,11 @@ public class EmpleadoServiceImpl implements EmpleadoService {
 
     @Override
     public EmpleadoResponseDTO guardar(EmpleadoDTO dto) {
-        if (empleadoRepository.existsByDocumento(dto.getDocumento())){
+        if (empleadoRepository.existsByDocumento(dto.getDocumento())) {
             throw new RuntimeException("El documento ya esta registrado");
         }
 
-        if (empleadoRepository.existsByCorreo(dto.getCorreo())){
+        if (empleadoRepository.existsByCorreo(dto.getCorreo())) {
             throw new RuntimeException("El correo ya esta registrado");
         }
 
@@ -50,14 +51,14 @@ public class EmpleadoServiceImpl implements EmpleadoService {
                 .fechaCreacion(LocalDateTime.now())
                 .build();
         Empleado guardado = empleadoRepository.save(empleado);
+        log.info("Empleado registrado exitosamente: {} con ID {}", guardado.getNombre(), guardado.getId());
         return EmpleadoMapper.toDTO(guardado);
     }
 
     @Override
     public List<EmpleadoResponseDTO> listar() {
         List<Empleado> empleados = empleadoRepository.findByActivoTrue();
-
-        System.out.println("Empleados activos encontrados: " + empleados.size());
+        log.debug("Empleados activos encontrados: {}", empleados.size());
 
         return empleados.stream()
                 .map(EmpleadoMapper::toDTO)
@@ -69,7 +70,7 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         Empleado empleado = empleadoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Empleado no encontrado"));
 
-        if (!empleado.getActivo()){
+        if (!empleado.getActivo()) {
             throw new RuntimeException("El empleado se encuentra inactivo");
         }
 
@@ -82,12 +83,12 @@ public class EmpleadoServiceImpl implements EmpleadoService {
                 .orElseThrow(() -> new RuntimeException("Empleado no encontrado"));
 
         if (!empleado.getDocumento().equals(dto.getDocumento())
-        && empleadoRepository.existsByDocumento(dto.getDocumento())){
+                && empleadoRepository.existsByDocumento(dto.getDocumento())) {
             throw new RuntimeException("El documento ya esta registrado");
         }
 
         if (!empleado.getCorreo().equals(dto.getCorreo())
-        && empleadoRepository.existsByCorreo(dto.getCorreo())){
+                && empleadoRepository.existsByCorreo(dto.getCorreo())) {
             throw new RuntimeException("El correo ya esta registrado");
         }
 
@@ -99,66 +100,62 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         empleado.setCorreo(dto.getCorreo());
         empleado.setCargo(dto.getCargo());
         empleado.setDepartamento(departamento);
-        if (dto.getAccesoPermitido() != null){
+        if (dto.getAccesoPermitido() != null) {
             empleado.setAccesoPermitido(dto.getAccesoPermitido());
         }
         empleado.setFechaActualizacion(LocalDateTime.now());
 
         Empleado actualizado = empleadoRepository.save(empleado);
+        log.info("Empleado actualizado exitosamente con ID {}", actualizado.getId());
         return EmpleadoMapper.toDTO(actualizado);
     }
 
     @Override
     public void eliminar(Long id) {
-
         Empleado empleado = empleadoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Empleado no encontrado"));
 
-        /**
-         * Se usa la eliminacion logica para conservar el historial del empleado
-         * y asi evitar problemas de integridad referencial con otras entidades
-         * que pueden estar relacionadas
-         */
         empleado.setActivo(false);
         empleado.setFechaActualizacion(LocalDateTime.now());
         empleadoRepository.save(empleado);
+        log.info("Empleado con ID {} marcado como inactivo (eliminación lógica)", id);
     }
 
     @Override
-    public void importarCSV(MultipartFile archivo, Long departamentoId){
+    public void importarCSV(MultipartFile archivo, Long departamentoId) {
         Departamento departamento = departamentoRepository.findById(departamentoId)
                 .orElseThrow(() -> new RuntimeException("Departamento no encontrado"));
 
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(archivo.getInputStream()))){
-
-            String linea = reader.readLine();
-
+        try (CSVReader csvReader = new CSVReader(new InputStreamReader(archivo.getInputStream()))) {
+            String[] datos;
+            boolean esHeader = true;
             int importados = 0;
             int duplicados = 0;
 
-            while ((linea = reader.readLine()) != null){
-                String[] datos = linea.split("[,\t]");
-
-                System.out.println("Columnas detectadas: " + datos.length);
-                if (datos.length < 5){
-                    System.out.println("Fila ignorada");
+            while ((datos = csvReader.readNext()) != null) {
+                if (esHeader) {
+                    esHeader = false;
+                    continue;
+                }
+                if (datos.length < 5) {
+                    log.warn("Fila CSV ignorada por columnas insuficientes: {}", datos.length);
                     continue;
                 }
 
-                System.out.println("Documento: " + datos[2].trim());
+                String documento = datos[2].trim();
+                String correo = datos[3].trim();
 
-                if (empleadoRepository.existsByDocumento(datos[2].trim())){
+                if (empleadoRepository.existsByDocumento(documento) || empleadoRepository.existsByCorreo(correo)) {
                     duplicados++;
-                    System.out.println("Documento duplicado");
+                    log.warn("Fila omitida por documento o correo duplicado: doc={}, correo={}", documento, correo);
                     continue;
                 }
 
                 Empleado empleado = Empleado.builder()
                         .nombre(datos[0].trim())
                         .apellido(datos[1].trim())
-                        .documento(datos[2].trim())
-                        .correo(datos[3].trim())
+                        .documento(documento)
+                        .correo(correo)
                         .cargo(datos[4].trim())
                         .departamento(departamento)
                         .activo(true)
@@ -167,15 +164,14 @@ public class EmpleadoServiceImpl implements EmpleadoService {
                         .build();
                 empleadoRepository.save(empleado);
                 importados++;
-                System.out.println("Empleado guardado: " + empleado.getNombre());
+                log.info("Empleado importado: {}", empleado.getNombre());
             }
 
-            System.out.println("Importacion de empleados finalizada");
-            System.out.println("Empleados importados : " + importados);
-            System.out.println("Empleados duplicados : " + duplicados);
+            log.info("Importación finalizada. Importados: {}, Duplicados omitidos: {}", importados, duplicados);
 
-        } catch (IOException e){
-            throw new RuntimeException("Error al leer el archivo CSV");
+        } catch (Exception e) {
+            log.error("Error al procesar archivo CSV", e);
+            throw new RuntimeException("Error al leer el archivo CSV: " + e.getMessage());
         }
     }
 
