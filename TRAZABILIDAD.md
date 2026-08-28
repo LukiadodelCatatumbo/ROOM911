@@ -100,3 +100,52 @@
 5. **Gobernanza y Control de Archivos:**
    - Adición de regla 5 en [`AGENTS.md`](./AGENTS.md) sobre diseño responsivo, scroll interno y estados vacíos.
    - Creación del [`.gitignore`](./.gitignore) raíz para proteger el repositorio de artefactos de compilación (`node_modules`, `target`, `dist`, `.env`).
+
+---
+
+### 📚 Fase 5: Revisión trazable de Historias de Usuario contra la aplicación
+* **Fecha:** 2026-08-26
+* **Objetivo:** Comparar el documento de historias con la aplicación real, iniciar la actualización por HU-001 y dejar continuidad para revisar cada HU sin perder contexto.
+
+#### Cambios realizados:
+1. Se confirmó que el repositorio no contiene archivo `.mc`; el documento funcional disponible es [`Historias de Usuario Room_911.md`](./Historias%20de%20Usuario%20Room_911.md).
+2. Se actualizó HU-001 con lenguaje de negocio, alcance separado, criterios de aceptación, estado actual, brechas y tareas pendientes.
+3. Se creó [`REVISION_HISTORIAS_USUARIO.md`](./REVISION_HISTORIAS_USUARIO.md) con la matriz de 29 HUs, duplicados, cobertura inicial y candidatas de nuevas historias.
+4. Se creó [`HANDOFF_REVISION_HU.md`](./HANDOFF_REVISION_HU.md), cuyo siguiente punto de trabajo es HU-002.
+5. No se modificó código fuente en esta fase; los hallazgos de seguridad y contrato quedaron documentados para su posterior decisión e implementación.
+
+---
+
+### 📚 Fase 6: Ampliación funcional de HU-001
+* **Fecha:** 2026-08-26
+* **Objetivo:** Incorporar suficiente contexto funcional para que una persona de negocio pueda entender, revisar y probar la HU-001 sin depender de la implementación técnica.
+
+#### Cambios realizados:
+1. Se agregaron precondiciones y el flujo principal de autenticación y cierre de sesión.
+2. Se ampliaron los criterios de aceptación a 13 escenarios con formato Dado/Cuando/Entonces, resultado esperado y estado frente a la app.
+3. Se detallaron 13 tareas con entregable y forma de comprobación.
+4. Se agregaron reglas de negocio, calidad, seguridad y límites de alcance.
+5. Se actualizó el handoff para indicar que HU-001 está en versión 1.1 y que la siguiente HU sigue siendo HU-002.
+
+### 📚 Fase 7: Ampliación funcional de HU-002
+* **Fecha:** 2026-08-26
+* **Objetivo:** Mejorar la definición funcional de la gestión de administradores sin modificar HU-001, haciendo que cada condición y tarea pueda entenderse y verificarse desde negocio.
+
+#### Cambios realizados:
+1. Se amplió el requerimiento de HU-002 para incluir registro, consulta, edición, roles, estados, búsqueda, filtros, paginación y persistencia.
+2. Se reescribieron las diez condiciones con contexto, acción y resultado esperado en formato Dado/Cuando/Entonces.
+3. Se reescribieron las dieciséis tareas con una descripción breve del entregable o comportamiento que debe comprobarse.
+4. Se agregó el estado frente a la aplicación y la evidencia E-06, incluyendo las brechas del contrato de rol, la persistencia de estado y los fallbacks demo.
+5. Se actualizó el handoff y la matriz para continuar con HU-003.
+
+### 📚 Fase 8: Mejora del paquete HU-001 a HU-007
+* **Fecha:** 2026-08-26
+* **Objetivo:** Mejorar prioritariamente la redacción de las tareas y mantener condiciones funcionales claras y generales en las primeras siete historias, incluyendo HU-001.
+
+#### Cambios realizados:
+1. Se actualizaron las tareas de HU-001, pasando de nombres breves a descripciones con propósito, alcance y resultado comprobable.
+2. Se conservaron las evidencias, brechas y criterios de seguridad de HU-001, actualizando su versión documental a 1.2.
+3. Se ampliaron las tareas de HU-003 a HU-007 para explicar qué debe construirse, validarse, persistirse o probarse.
+4. Se ajustaron las condiciones de HU-003 a HU-007 para expresar escenarios generales, claros y verificables.
+5. Se mantuvo HU-001 como historia funcional vigente y se dejó intacto únicamente su bloque histórico original.
+6. Se actualizó el handoff y la matriz para continuar con el paquete HU-008 a HU-014.

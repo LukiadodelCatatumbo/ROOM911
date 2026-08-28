@@ -36,7 +36,7 @@ export async function cargarQrDataUrl(empleado) {
                 const dataUrl = await blobToDataURL(blob);
                 if (dataUrl) return dataUrl;
             }
-        } catch (error) {
+        } catch {
             // El backend no dispone del endpoint /qr (HTTP 404), procedemos al generador dinámico
         }
     }
@@ -87,7 +87,7 @@ export async function descargarQrPng(empleado, existingDataUrl = null) {
             const objectUrl = URL.createObjectURL(blob);
             link.href = objectUrl;
             link.download = `QR_${docId || "empleado"}.png`;
-        } catch (e) {
+        } catch {
             link.href = dataUrl;
             link.download = `QR_${docId || "empleado"}.png`;
         }
