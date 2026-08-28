@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-reto_room_911}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_password}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - room911_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-reto_room_911}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend_911/backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-reto_room_911}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres_password}
+      SERVER_PORT: 8080
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-update}
+      JPA_SHOW_SQL: ${JPA_SHOW_SQL:-false}
+      JPA_FORMAT_SQL: ${JPA_FORMAT_SQL:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+
+  frontend:
+    build:
+      context: ./room911-frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${PORT:-5173}:80"
+
+volumes:
+  room911_db_data:

@@ -4,17 +4,54 @@ ROOM911 es una plataforma integral de **Control de Acceso Físico, Gestión de P
 
 ---
 
-## 🚀 Inicio Rápido
+## 🚀 Inicio rápido con Docker (recomendado)
 
 ### 📋 Prerrequisitos
-* **Java:** JDK 17 o superior
-* **Node.js:** v18.0.0 o superior
-* **Gestor de Paquetes Frontend:** `pnpm` (obligatorio: `npm install -g pnpm` o `corepack enable`)
-* **Base de Datos:** PostgreSQL 14+
 
----
+Solo necesitas tener instalado **Docker Desktop** (o Docker Engine con el complemento Docker Compose).
 
-## ⚙️ 1. Configuración de Base de Datos
+Después de clonar el repositorio:
+
+```bash
+git clone https://github.com/LukiadodelCatatumbo/ROOM911.git
+cd ROOM911
+docker compose up -d --build
+```
+
+La primera ejecución construye las imágenes, crea PostgreSQL e inicializa los datos base automáticamente. La aplicación quedará disponible en:
+
+- **Interfaz web:** http://localhost:5173
+- **API REST:** http://localhost:8080/api
+- **PostgreSQL:** `localhost:5432`
+
+Comandos útiles:
+
+```bash
+# Ver el estado y los logs
+docker compose ps
+docker compose logs -f
+
+# Detener los contenedores conservando la base de datos
+docker compose down
+
+# Detener y eliminar también los datos persistidos (operación destructiva)
+docker compose down -v
+```
+
+### 🔐 Configuración opcional
+
+Docker Compose usa valores de desarrollo seguros por defecto. Para personalizarlos, copia `.env.example` como `.env` en la raíz antes de levantar los servicios:
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+No subas el archivo `.env` al repositorio. Las variables de conexión, puertos y URL de la API están documentadas en `.env.example`.
+
+## 🛠️ Ejecución manual (alternativa)
+
+### Base de datos
 
 Crea la base de datos en tu instancia local de PostgreSQL:
 
@@ -22,45 +59,24 @@ Crea la base de datos en tu instancia local de PostgreSQL:
 CREATE DATABASE reto_room_911;
 ```
 
----
+### Backend (Spring Boot 3)
 
-## ☕ 2. Ejecutar el Backend (Spring Boot 3)
+```bash
+cd backend_911/backend
+./mvnw spring-boot:run
+```
 
-1. Navega al directorio del backend:
-   ```bash
-   cd backend_911/backend
-   ```
-2. (Opcional) Configura tus credenciales en `.env` o en `src/main/resources/application.properties`:
-   ```properties
-   DB_HOST=localhost
-   DB_PORT=5432
-   DB_NAME=reto_room_911
-   DB_USERNAME=postgres
-   DB_PASSWORD=tu_contraseña
-   ```
-3. Compila y ejecuta la aplicación:
-   ```bash
-   ./mvnw spring-boot:run
-   ```
-   La API REST estará disponible en `http://localhost:8080/api`.
+La API REST estará disponible en `http://localhost:8080/api`.
 
----
+### Frontend (React + Vite)
 
-## ⚛️ 3. Ejecutar el Frontend (React + Vite)
+```bash
+cd room911-frontend
+pnpm install
+pnpm dev
+```
 
-1. Navega al directorio del frontend:
-   ```bash
-   cd room911-frontend
-   ```
-2. Instala las dependencias utilizando **exclusivamente `pnpm`**:
-   ```bash
-   pnpm install
-   ```
-3. Inicia el servidor de desarrollo:
-   ```bash
-   pnpm dev
-   ```
-   La interfaz web estará disponible en `http://localhost:5173`.
+La interfaz web estará disponible en `http://localhost:5173`.
 
 ---
 

@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+**/node_modules
+**/dist
+**/target
+**/.idea
+**/.vscode
+**/*.log
+backup_reto_room_911_before_merge_20260826.dump
