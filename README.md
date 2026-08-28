@@ -22,7 +22,7 @@ La primera ejecución construye las imágenes, crea PostgreSQL e inicializa los 
 
 - **Interfaz web:** http://localhost:5173
 - **API REST:** http://localhost:8080/api
-- **PostgreSQL:** `localhost:5432`
+- **PostgreSQL:** `localhost:5433` (puerto interno de Docker: `5432`)
 
 Comandos útiles:
 
@@ -47,7 +47,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-No subas el archivo `.env` al repositorio. Las variables de conexión, puertos y URL de la API están documentadas en `.env.example`.
+No subas el archivo `.env` al repositorio. Las variables de conexión, puertos y URL de la API están documentadas en `.env.example`. Si necesitas otro puerto para PostgreSQL, cambia `DB_HOST_PORT`.
 
 ## 🛠️ Ejecución manual (alternativa)
 
