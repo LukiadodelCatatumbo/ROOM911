@@ -6,8 +6,6 @@ services:
       POSTGRES_DB: ${DB_NAME:-reto_room_911}
       POSTGRES_USER: ${DB_USERNAME:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_password}
-    ports:
-      - "${DB_HOST_PORT:-5433}:5432"
     volumes:
       - room911_db_data:/var/lib/postgresql/data
     healthcheck:
