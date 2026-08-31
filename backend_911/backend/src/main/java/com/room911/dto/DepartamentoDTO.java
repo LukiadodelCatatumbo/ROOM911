@@ -14,5 +14,13 @@ public class DepartamentoDTO {
     @NotBlank(message = "El nombre del departamento es obligatorio")
     private String nombre;
 
+    private String codigo;
+
     private String descripcion;
+
+    private String responsable;
+
+    private String nivelRestriccion;
+
+    private Integer capacidadMaxima;
 }

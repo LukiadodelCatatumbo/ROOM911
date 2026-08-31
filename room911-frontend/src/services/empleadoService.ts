@@ -1,36 +1,56 @@
 import api from "./api";
 import { Employee } from "../types";
-import { MOCK_EMPLEADOS } from "../data/mockData";
+
+const fechaDe = (valor?: string) =>
+  valor ? String(valor).split("T")[0] : undefined;
+
+const mapEmpleado = (d: any): Employee => ({
+  id: d.documento || `EMP-${String(d.id).padStart(4, "0")}`,
+  dbId: d.id,
+  nombre: d.nombre || "",
+  apellido: d.apellido || "",
+  cedula: d.documento || d.documentoIdentidad,
+  departamento:
+    d.nombreDepartamento ||
+    d.departamento?.nombre ||
+    (typeof d.departamento === "string" ? d.departamento : "Sin asignar"),
+  departamentoId: d.departamentoId || d.departamento?.id,
+  cargo: d.cargo || "",
+  email: d.correo || "",
+  acceso: d.accesoPermitido ?? d.acceso ?? true,
+  permisoAcceso: d.accesoPermitido ?? d.permisoAcceso ?? true,
+  activo: d.activo ?? true,
+  fechaIngreso: fechaDe(d.fechaCreacion) || d.fechaIngreso,
+  fechaRegistro: fechaDe(d.fechaCreacion) || d.fechaRegistro,
+  codigoQr: d.documento || `EMP-${String(d.id).padStart(4, "0")}`,
+  documentoIdentidad: d.documento || d.documentoIdentidad,
+});
+
+const toPayload = (empleado: Partial<Employee>) => ({
+  nombre: empleado.nombre,
+  apellido: empleado.apellido,
+  documento: empleado.cedula || empleado.documentoIdentidad,
+  correo: empleado.email,
+  cargo: empleado.cargo,
+  departamentoId: empleado.departamentoId ? Number(empleado.departamentoId) : undefined,
+  accesoPermitido: empleado.permisoAcceso ?? empleado.acceso ?? true,
+});
+
+/** El backend expone rutas por id numérico (PK); dbId es la referencia confiable. */
+const idNumerico = (id: string | number, dbId?: number): number => {
+  if (dbId != null) return dbId;
+  const parsed =
+    typeof id === "number" ? id : parseInt(String(id).replace(/\D/g, ""), 10);
+  if (Number.isNaN(parsed)) {
+    throw new Error("Identificador de empleado no válido");
+  }
+  return parsed;
+};
 
 export const empleadoService = {
   async listar(): Promise<Employee[]> {
-    try {
-      const response = await api.get("/empleados");
-      const data = response.data;
-      if (Array.isArray(data) && data.length > 0) {
-        return data.map((d: any) => ({
-          id: d.documento || `EMP-${String(d.id).padStart(4, "0")}`,
-          dbId: d.id,
-          nombre: d.nombre || "",
-          apellido: d.apellido || "",
-          cedula: d.documento || d.cedula || d.documentoIdentidad,
-          departamento: d.nombreDepartamento || d.departamento?.nombre || (typeof d.departamento === "string" ? d.departamento : "General"),
-          departamentoId: d.departamentoId || d.departamento?.id || 1,
-          cargo: d.cargo || "Especialista",
-          email: d.correo || d.email || `${d.nombre?.toLowerCase() || "emp"}@pharma911.com`,
-          acceso: d.accesoPermitido ?? d.acceso ?? d.activo ?? true,
-          permisoAcceso: d.accesoPermitido ?? d.permisoAcceso ?? true,
-          activo: d.activo ?? true,
-          fechaIngreso: d.fechaCreacion ? String(d.fechaCreacion).split("T")[0] : (d.fechaIngreso || "2024-01-15"),
-          fechaRegistro: d.fechaCreacion ? String(d.fechaCreacion).split("T")[0] : (d.fechaRegistro || "2024-01-15"),
-          codigoQr: d.documento || `EMP-${String(d.id).padStart(4, "0")}`,
-          documentoIdentidad: d.documento || d.documentoIdentidad || "—",
-        }));
-      }
-      return MOCK_EMPLEADOS;
-    } catch {
-      return MOCK_EMPLEADOS;
-    }
+    const response = await api.get("/empleados");
+    return response.data.map(mapEmpleado);
   },
 
   async listarTodos(): Promise<Employee[]> {
@@ -38,84 +58,13 @@ export const empleadoService = {
   },
 
   async buscarPorId(id: string | number): Promise<Employee> {
-    try {
-      const response = await api.get(`/empleados/${id}`);
-      const d = response.data;
-      return {
-        id: d.documento || `EMP-${String(d.id).padStart(4, "0")}`,
-        dbId: d.id,
-        nombre: d.nombre,
-        apellido: d.apellido,
-        cedula: d.documento || d.cedula || d.documentoIdentidad,
-        departamento: d.nombreDepartamento || d.departamento?.nombre || (typeof d.departamento === "string" ? d.departamento : "General"),
-        departamentoId: d.departamentoId || d.departamento?.id,
-        cargo: d.cargo || "Especialista",
-        email: d.correo || d.email,
-        acceso: d.accesoPermitido ?? d.acceso ?? true,
-        permisoAcceso: d.accesoPermitido ?? d.permisoAcceso ?? true,
-        activo: d.activo ?? true,
-        fechaIngreso: d.fechaCreacion ? String(d.fechaCreacion).split("T")[0] : (d.fechaIngreso || "2024-01-15"),
-        fechaRegistro: d.fechaCreacion ? String(d.fechaCreacion).split("T")[0] : (d.fechaRegistro || "2024-01-15"),
-        codigoQr: d.documento || String(id),
-        documentoIdentidad: d.documento || d.documentoIdentidad,
-      };
-    } catch {
-      const found = MOCK_EMPLEADOS.find(e => e.id === id || String(e.dbId) === String(id));
-      if (found) return found;
-      return MOCK_EMPLEADOS[0];
-    }
+    const response = await api.get(`/empleados/${id}`);
+    return mapEmpleado(response.data);
   },
 
   async guardar(empleado: Partial<Employee>): Promise<Employee> {
-    try {
-      const payload = {
-        nombre: empleado.nombre,
-        apellido: empleado.apellido,
-        documento: empleado.cedula || empleado.documentoIdentidad || empleado.id || "00000000",
-        correo: empleado.email || `${empleado.nombre?.toLowerCase() || "usuario"}@pharma911.com`,
-        cargo: empleado.cargo || "Operario",
-        departamentoId: Number(empleado.departamentoId) || 1,
-        accesoPermitido: empleado.permisoAcceso ?? empleado.acceso ?? true,
-      };
-      const response = await api.post("/empleados", payload);
-      const d = response.data;
-      return {
-        id: d.documento || `EMP-${String(d.id).padStart(4, "0")}`,
-        dbId: d.id,
-        nombre: d.nombre,
-        apellido: d.apellido,
-        cedula: d.documento,
-        departamento: d.nombreDepartamento || "General",
-        departamentoId: d.departamentoId,
-        cargo: d.cargo,
-        email: d.correo,
-        acceso: d.accesoPermitido ?? true,
-        permisoAcceso: d.accesoPermitido ?? true,
-        activo: d.activo ?? true,
-        fechaIngreso: d.fechaCreacion ? String(d.fechaCreacion).split("T")[0] : new Date().toISOString().split("T")[0],
-        fechaRegistro: d.fechaCreacion ? String(d.fechaCreacion).split("T")[0] : new Date().toISOString().split("T")[0],
-        codigoQr: d.documento || `EMP-${String(d.id).padStart(4, "0")}`,
-      };
-    } catch {
-      const newEmp: Employee = {
-        id: empleado.id || `EMP-0${Math.floor(Math.random() * 900 + 100)}`,
-        nombre: empleado.nombre || "",
-        apellido: empleado.apellido || "",
-        cedula: empleado.cedula || "1020304050",
-        departamento: empleado.departamento || "Producción",
-        departamentoId: empleado.departamentoId || 1,
-        cargo: empleado.cargo || "Operario",
-        email: empleado.email || "",
-        acceso: empleado.acceso ?? empleado.permisoAcceso ?? true,
-        permisoAcceso: empleado.permisoAcceso ?? empleado.acceso ?? true,
-        activo: true,
-        fechaIngreso: new Date().toISOString().split("T")[0],
-        fechaRegistro: new Date().toISOString().split("T")[0],
-        codigoQr: empleado.id || `EMP-0${Math.floor(Math.random() * 900 + 100)}`,
-      };
-      MOCK_EMPLEADOS.unshift(newEmp);
-      return newEmp;
-    }
+    const response = await api.post("/empleados", toPayload(empleado));
+    return mapEmpleado(response.data);
   },
 
   async crear(empleado: Partial<Employee>): Promise<Employee> {
@@ -123,45 +72,25 @@ export const empleadoService = {
   },
 
   async actualizar(id: string | number, empleado: Partial<Employee>): Promise<Employee> {
-    try {
-      const dbId = typeof id === "number" ? id : parseInt(String(id).replace(/\D/g, ""), 10) || 1;
-      const payload = {
-        nombre: empleado.nombre,
-        apellido: empleado.apellido,
-        documento: empleado.cedula || empleado.documentoIdentidad || "00000000",
-        correo: empleado.email || "usuario@pharma911.com",
-        cargo: empleado.cargo || "Operario",
-        departamentoId: Number(empleado.departamentoId) || 1,
-        accesoPermitido: empleado.permisoAcceso ?? empleado.acceso ?? true,
-      };
-      const response = await api.put(`/empleados/${dbId}`, payload);
-      return response.data;
-    } catch {
-      const index = MOCK_EMPLEADOS.findIndex(e => e.id === id);
-      if (index !== -1) {
-        MOCK_EMPLEADOS[index] = {
-          ...MOCK_EMPLEADOS[index],
-          ...empleado,
-        };
-        return MOCK_EMPLEADOS[index];
-      }
-      return {
-        ...MOCK_EMPLEADOS[0],
-        ...empleado,
-      } as Employee;
-    }
+    const dbId = idNumerico(id, empleado.dbId);
+    const response = await api.put(`/empleados/${dbId}`, toPayload(empleado));
+    return mapEmpleado(response.data);
   },
 
   async cambiarEstado(id: string | number, nuevoEstado: boolean): Promise<Employee> {
-    return this.actualizar(id, {
-      acceso: nuevoEstado,
+    // El PUT exige el DTO completo: se recupera el empleado y se reenvía con el permiso alternado
+    const dbId = idNumerico(id);
+    const actual = await this.buscarPorId(dbId);
+    return this.actualizar(dbId, {
+      ...actual,
       permisoAcceso: nuevoEstado,
+      acceso: nuevoEstado,
       activo: nuevoEstado,
     });
   },
 
   async eliminar(id: string | number): Promise<void> {
-    // Soft delete: toggle status
+    // Borrado lógico: desactiva el acceso del empleado
     await this.cambiarEstado(id, false);
   },
 

@@ -10,6 +10,7 @@ import com.room911.dto.DepartamentoResponseDTO;
 import com.room911.entity.Departamento;
 import com.room911.mapper.DepartamentoMapper;
 import com.room911.repository.DepartamentoRepository;
+import com.room911.repository.EmpleadoRepository;
 import com.room911.service.interfaces.DepartamentoService;
 
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,12 @@ import lombok.RequiredArgsConstructor;
 public class DepartamentoServiceImpl implements DepartamentoService {
 
     private final DepartamentoRepository departamentoRepository;
+    private final EmpleadoRepository empleadoRepository;
+
+    private DepartamentoResponseDTO toDTO(Departamento departamento) {
+        long activos = empleadoRepository.countByDepartamentoIdAndActivoTrue(departamento.getId());
+        return DepartamentoMapper.toDTO(departamento, activos);
+    }
 
     @Override
     public DepartamentoResponseDTO guardar(DepartamentoDTO dto) {
@@ -29,14 +36,18 @@ public class DepartamentoServiceImpl implements DepartamentoService {
 
         Departamento departamento = Departamento.builder()
                 .nombre(dto.getNombre())
+                .codigo(dto.getCodigo())
                 .descripcion(dto.getDescripcion())
+                .responsable(dto.getResponsable())
+                .nivelRestriccion(dto.getNivelRestriccion())
+                .capacidadMaxima(dto.getCapacidadMaxima())
                 .activo(true)
                 .fechaCreacion(LocalDateTime.now())
                 .build();
 
         Departamento guardado = departamentoRepository.save(departamento);
 
-        return DepartamentoMapper.toDTO(guardado);
+        return toDTO(guardado);
     }
 
     @Override
@@ -44,7 +55,7 @@ public class DepartamentoServiceImpl implements DepartamentoService {
 
         return departamentoRepository.findAll()
                 .stream()
-                .map(DepartamentoMapper::toDTO)
+                .map(this::toDTO)
                 .toList();
 
     }
@@ -56,7 +67,7 @@ public class DepartamentoServiceImpl implements DepartamentoService {
                 .orElseThrow(() ->
                         new RuntimeException("Departamento no encontrado"));
 
-        return DepartamentoMapper.toDTO(departamento);
+        return toDTO(departamento);
 
     }
 
@@ -67,13 +78,22 @@ public class DepartamentoServiceImpl implements DepartamentoService {
                 .orElseThrow(() ->
                         new RuntimeException("Departamento no encontrado"));
 
+        if (!departamento.getNombre().equals(dto.getNombre())
+                && departamentoRepository.existsByNombre(dto.getNombre())) {
+            throw new RuntimeException("El departamento ya existe");
+        }
+
         departamento.setNombre(dto.getNombre());
+        departamento.setCodigo(dto.getCodigo());
         departamento.setDescripcion(dto.getDescripcion());
+        departamento.setResponsable(dto.getResponsable());
+        departamento.setNivelRestriccion(dto.getNivelRestriccion());
+        departamento.setCapacidadMaxima(dto.getCapacidadMaxima());
         departamento.setFechaActualizacion(LocalDateTime.now());
 
         Departamento actualizado = departamentoRepository.save(departamento);
 
-        return DepartamentoMapper.toDTO(actualizado);
+        return toDTO(actualizado);
 
     }
 

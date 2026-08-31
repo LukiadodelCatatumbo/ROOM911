@@ -26,10 +26,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      // Session expired or invalid
+    const status = error.response?.status;
+    const esLogin = error.config?.url?.includes("/auth/login");
+    if (status === 401 && !esLogin) {
+      // Sesión expirada o token inválido: limpiar y volver al login
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }

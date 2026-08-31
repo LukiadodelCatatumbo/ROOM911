@@ -10,15 +10,25 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class AdministradorServiceImpl implements AdministradorService {
+
+    public static final String ROL_POR_DEFECTO = "ADMIN_ACCESOS";
+    private static final Set<String> ROLES_VALIDOS = Set.of("SUPER_ADMIN", "ADMIN_ACCESOS", "ADMIN_SISTEMAS");
+
     private final AdministradorRepository administradorRepository;
     private final BCryptPasswordEncoder passwordEncoder;
 
     @Override
     public Administrador guardar(AdministradorDTO dto) {
+        // La contraseña es obligatoria solo al crear (en PUT es opcional)
+        if (dto.getContrasena() == null || dto.getContrasena().isBlank()) {
+            throw new IllegalArgumentException("La contraseña es obligatoria");
+        }
+
         if (administradorRepository.existsByUsuario(dto.getUsuario())) {
             throw new RuntimeException("El usuario ya existe");
         }
@@ -32,6 +42,7 @@ public class AdministradorServiceImpl implements AdministradorService {
                 .correo(dto.getCorreo())
                 .usuario(dto.getUsuario())
                 .contrasena(passwordEncoder.encode(dto.getContrasena()))
+                .rol(normalizarRol(dto.getRol()))
                 .activo(true)
                 .fechaCreacion(LocalDateTime.now())
                 .build();
@@ -60,6 +71,7 @@ public class AdministradorServiceImpl implements AdministradorService {
         if (dto.getContrasena() != null && !dto.getContrasena().isBlank()) {
             administrador.setContrasena(passwordEncoder.encode(dto.getContrasena()));
         }
+        administrador.setRol(normalizarRol(dto.getRol()));
         administrador.setFechaActualizacion(LocalDateTime.now());
         return administradorRepository.save(administrador);
     }
@@ -69,5 +81,16 @@ public class AdministradorServiceImpl implements AdministradorService {
         Administrador administrador = buscarPorId(id);
         administradorRepository.delete(administrador);
 
+    }
+
+    private String normalizarRol(String rol) {
+        if (rol == null || rol.isBlank()) {
+            return ROL_POR_DEFECTO;
+        }
+        String rolNormalizado = rol.trim().toUpperCase();
+        if (!ROLES_VALIDOS.contains(rolNormalizado)) {
+            throw new IllegalArgumentException("Rol no válido: " + rol);
+        }
+        return rolNormalizado;
     }
 }

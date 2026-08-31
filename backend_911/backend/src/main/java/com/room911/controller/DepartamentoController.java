@@ -20,6 +20,7 @@ import com.room911.service.interfaces.DepartamentoService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/departamentos")
@@ -32,6 +33,7 @@ public class DepartamentoController {
      * Esto se usa para guardar un nuevo departamento
      */
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<DepartamentoResponseDTO> guardar(
             @Valid @RequestBody DepartamentoDTO dto) {
 
@@ -62,6 +64,7 @@ public class DepartamentoController {
      * Actualizar formación de un departamento
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<DepartamentoResponseDTO> actualizar(
             @PathVariable Long id,
             @Valid @RequestBody DepartamentoDTO dto) {
@@ -73,6 +76,7 @@ public class DepartamentoController {
      * Eliminación logica del departamento
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
 
         departamentoService.eliminar(id);
@@ -84,6 +88,7 @@ public class DepartamentoController {
      * Reactivar un departamento
      */
     @PatchMapping("/{id}/activar")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<Void> activar(@PathVariable Long id) {
 
         departamentoService.activar(id);

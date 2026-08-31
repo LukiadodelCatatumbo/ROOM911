@@ -23,6 +23,8 @@ public class AdministradorResponseDTO {
 
     private String usuario;
 
+    private String rol;
+
     private Boolean activo;
 
     private LocalDateTime fechaCreacion;

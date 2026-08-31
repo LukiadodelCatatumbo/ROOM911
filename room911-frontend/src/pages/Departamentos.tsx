@@ -14,6 +14,7 @@ import {
   Power,
 } from "lucide-react";
 import { departamentoService } from "../services/departamentoService";
+import { authService } from "../services/authService";
 import { Department } from "../types";
 import { RestrictionBadge } from "../components/common/Badge";
 import { ConfirmDialog } from "../components/common/ConfirmDialog";
@@ -22,6 +23,7 @@ import { toast } from "sonner";
 interface DeptErrors {
   codigo?: string;
   nombre?: string;
+  descripcion?: string;
   responsable?: string;
   capacidadMaxima?: string;
 }
@@ -35,6 +37,7 @@ export default function Departamentos() {
   const [editingDept, setEditingDept] = useState<Department | null>(null);
   const [codigo, setCodigo] = useState("");
   const [nombre, setNombre] = useState("");
+  const [descripcion, setDescripcion] = useState("");
   const [responsable, setResponsable] = useState("");
   const [nivelRestriccion, setNivelRestriccion] = useState<
     "BAJA" | "MEDIA" | "ALTA" | "CRITICA"
@@ -53,6 +56,8 @@ export default function Departamentos() {
   });
 
   const [refreshing, setRefreshing] = useState(false);
+  // El backend restringe escrituras a SUPER_ADMIN y ADMIN_ACCESOS (@PreAuthorize)
+  const puedeEscribir = authService.puedeGestionarPersonal();
 
   const loadDepartments = async (showToast = false) => {
     if (showToast) setRefreshing(true);
@@ -64,8 +69,11 @@ export default function Departamentos() {
           description: "Catálogo de zonas BPF sincronizado.",
         });
       }
-    } catch {
-      // Fallback
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.mensaje ||
+          "No se pudieron cargar los departamentos"
+      );
     } finally {
       setLoading(false);
       if (showToast) setRefreshing(false);
@@ -92,6 +100,7 @@ export default function Departamentos() {
     setEditingDept(null);
     setCodigo("");
     setNombre("");
+    setDescripcion("");
     setResponsable("");
     setNivelRestriccion("BAJA");
     setCapacidadMaxima(50);
@@ -103,6 +112,7 @@ export default function Departamentos() {
     setEditingDept(dept);
     setCodigo(dept.codigo || String(dept.id));
     setNombre(dept.nombre);
+    setDescripcion(dept.descripcion || "");
     setResponsable(dept.responsable || "");
     setNivelRestriccion(
       (dept.nivelRestriccion === "CRITICA_ESTERIL"
@@ -130,6 +140,10 @@ export default function Departamentos() {
       errs.nombre = "El nombre debe tener entre 2 y 60 caracteres.";
     }
 
+    if (descripcion.trim().length > 255) {
+      errs.descripcion = "La descripción no puede exceder 255 caracteres.";
+    }
+
     if (!responsable.trim()) {
       errs.responsable = "El responsable o supervisor del área es obligatorio.";
     } else if (responsable.trim().length < 2 || responsable.trim().length > 60) {
@@ -150,33 +164,31 @@ export default function Departamentos() {
 
     setSaving(true);
     try {
+      const datos = {
+        codigo: codigo.trim().toUpperCase(),
+        nombre: nombre.trim(),
+        descripcion: descripcion.trim() || undefined,
+        responsable: responsable.trim(),
+        nivelRestriccion,
+        capacidadMaxima: Number(capacidadMaxima),
+      };
       if (editingDept) {
-        await departamentoService.actualizar(editingDept.id, {
-          codigo: codigo.trim().toUpperCase(),
-          nombre: nombre.trim(),
-          responsable: responsable.trim(),
-          nivelRestriccion,
-          capacidadMaxima: Number(capacidadMaxima),
-        });
+        await departamentoService.actualizar(editingDept.id, datos);
         toast.success("Área actualizada correctamente", {
           description: `Se modificaron los parámetros para ${nombre}.`,
         });
       } else {
-        await departamentoService.crear({
-          codigo: codigo.trim().toUpperCase(),
-          nombre: nombre.trim(),
-          responsable: responsable.trim(),
-          nivelRestriccion,
-          capacidadMaxima: Number(capacidadMaxima),
-        });
+        await departamentoService.crear(datos);
         toast.success("Nueva área registrada", {
           description: `El departamento ${nombre} está activo en el sistema.`,
         });
       }
       setDrawerOpen(false);
       loadDepartments();
-    } catch {
-      toast.error("Error al guardar el departamento");
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.mensaje || "Error al guardar el departamento"
+      );
     } finally {
       setSaving(false);
     }
@@ -213,13 +225,15 @@ export default function Departamentos() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleOpenCreate}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white text-xs font-semibold rounded-md shadow-2xs hover:bg-primary/90 transition-colors"
-          >
-            <Plus size={15} />
-            <span>Nueva Área</span>
-          </button>
+          {puedeEscribir && (
+            <button
+              onClick={handleOpenCreate}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white text-xs font-semibold rounded-md shadow-2xs hover:bg-primary/90 transition-colors"
+            >
+              <Plus size={15} />
+              <span>Nueva Área</span>
+            </button>
+          )}
           <button
             onClick={() => loadDepartments(true)}
             disabled={refreshing}
@@ -234,6 +248,16 @@ export default function Departamentos() {
 
       {/* Grid of Department Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {!loading && departments.length === 0 && (
+          <div className="md:col-span-2 lg:col-span-3 bg-white dark:bg-card border border-dashed border-border rounded-lg p-12 flex flex-col items-center justify-center gap-2 text-center">
+            <Building2 size={28} className="text-muted-foreground/50" />
+            <p className="text-sm font-semibold text-foreground">No hay áreas registradas</p>
+            <p className="text-xs text-muted-foreground max-w-sm">
+              Aún no se han configurado zonas operativas. Registre la primera área para
+              comenzar a asignar personal y controlar accesos BPF.
+            </p>
+          </div>
+        )}
         {departments.map((dept) => (
           <div
             key={dept.id}
@@ -275,26 +299,28 @@ export default function Departamentos() {
             </div>
 
             {/* Card Actions */}
-            <div className="border-t border-border pt-4 mt-4 flex items-center justify-end gap-2">
-              <button
-                onClick={() => handleOpenEdit(dept)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-background hover:bg-muted border border-border rounded-md text-xs font-medium text-foreground transition-colors"
-              >
-                <Edit2 size={13} />
-                <span>Editar</span>
-              </button>
-              <button
-                onClick={() => setConfirmDialog({ isOpen: true, dept })}
-                className={`p-1.5 border rounded-md transition-colors ${
-                  dept.activo !== false
-                    ? "border-destructive/30 text-destructive hover:bg-destructive/10"
-                    : "border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-                }`}
-                title={dept.activo !== false ? "Deshabilitar Área" : "Reactivar Área"}
-              >
-                {dept.activo !== false ? <PowerOff size={14} /> : <Power size={14} />}
-              </button>
-            </div>
+            {puedeEscribir && (
+              <div className="border-t border-border pt-4 mt-4 flex items-center justify-end gap-2">
+                <button
+                  onClick={() => handleOpenEdit(dept)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-background hover:bg-muted border border-border rounded-md text-xs font-medium text-foreground transition-colors"
+                >
+                  <Edit2 size={13} />
+                  <span>Editar</span>
+                </button>
+                <button
+                  onClick={() => setConfirmDialog({ isOpen: true, dept })}
+                  className={`p-1.5 border rounded-md transition-colors ${
+                    dept.activo !== false
+                      ? "border-destructive/30 text-destructive hover:bg-destructive/10"
+                      : "border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                  }`}
+                  title={dept.activo !== false ? "Deshabilitar Área" : "Reactivar Área"}
+                >
+                  {dept.activo !== false ? <PowerOff size={14} /> : <Power size={14} />}
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -379,6 +405,32 @@ export default function Departamentos() {
                   <p className="text-destructive text-[11px] mt-1 flex items-center gap-1">
                     <AlertCircle size={12} />
                     <span>{errors.nombre}</span>
+                  </p>
+                )}
+              </div>
+
+              {/* Descripción */}
+              <div>
+                <label className="block font-semibold text-foreground mb-1">
+                  Descripción del Área
+                </label>
+                <textarea
+                  rows={2}
+                  maxLength={255}
+                  placeholder="Ej. Líneas de síntesis y envasado farmacéutico bajo grado D"
+                  value={descripcion}
+                  onChange={(e) => {
+                    setDescripcion(e.target.value);
+                    if (errors.descripcion) setErrors({ ...errors, descripcion: undefined });
+                  }}
+                  className={`w-full px-3 py-2 bg-background border rounded-md text-xs text-foreground resize-none focus:outline-hidden focus:ring-1 ${
+                    errors.descripcion ? "border-destructive ring-1 ring-destructive" : "border-border focus:ring-primary"
+                  }`}
+                />
+                {errors.descripcion && (
+                  <p className="text-destructive text-[11px] mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} />
+                    <span>{errors.descripcion}</span>
                   </p>
                 )}
               </div>

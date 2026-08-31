@@ -46,8 +46,10 @@ export default function EmpleadoFormDrawer({
         if (data.length > 0 && !departamento) {
           setDepartamento(data[0].nombre);
         }
-      } catch {
-        // Fallback
+      } catch (err: any) {
+        toast.error(
+          err?.response?.data?.mensaje || "No se pudieron cargar los departamentos"
+        );
       }
     };
     fetchDepts();
@@ -67,7 +69,7 @@ export default function EmpleadoFormDrawer({
       setApellido("");
       setCedula("");
       setEmail("");
-      setDepartamento(departments[0]?.nombre || "Producción");
+      setDepartamento(departments[0]?.nombre || "");
       setCargo("");
       setPermisoAcceso(true);
     }
@@ -163,37 +165,34 @@ export default function EmpleadoFormDrawer({
 
     setLoading(true);
     try {
+      const deptoSeleccionado = departments.find((d) => d.nombre === departamento);
+      const datos = {
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
+        cedula: cedula.trim(),
+        email: email.trim(),
+        departamento,
+        departamentoId: deptoSeleccionado ? Number(deptoSeleccionado.id) : undefined,
+        cargo: cargo.trim(),
+        permisoAcceso,
+      };
       if (employee) {
-        await empleadoService.actualizar(employee.id, {
-          nombre: nombre.trim(),
-          apellido: apellido.trim(),
-          cedula: cedula.trim(),
-          email: email.trim(),
-          departamento,
-          cargo: cargo.trim(),
-          permisoAcceso,
-        });
+        await empleadoService.actualizar(employee.dbId ?? employee.id, datos);
         toast.success("Ficha actualizada correctamente", {
           description: `Se guardaron los cambios para ${nombre} ${apellido}.`,
         });
       } else {
-        await empleadoService.crear({
-          nombre: nombre.trim(),
-          apellido: apellido.trim(),
-          cedula: cedula.trim(),
-          email: email.trim(),
-          departamento,
-          cargo: cargo.trim(),
-          permisoAcceso,
-        });
+        await empleadoService.crear(datos);
         toast.success("Empleado registrado exitosamente", {
           description: `Se emitió el código de acceso y credencial para ${nombre} ${apellido}.`,
         });
       }
       onSuccess?.();
       onClose();
-    } catch {
-      toast.error("Error al procesar la solicitud");
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.mensaje || "Error al procesar la solicitud"
+      );
     } finally {
       setLoading(false);
     }

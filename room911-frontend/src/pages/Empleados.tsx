@@ -15,6 +15,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { empleadoService } from "../services/empleadoService";
+import { authService } from "../services/authService";
 import { Employee } from "../types";
 import { AccessBadge } from "../components/common/Badge";
 import { QRModal } from "../components/common/QRModal";
@@ -53,6 +54,8 @@ export default function Empleados() {
 
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
+  // El backend restringe escrituras a SUPER_ADMIN y ADMIN_ACCESOS (@PreAuthorize)
+  const puedeEscribir = authService.puedeGestionarPersonal();
 
   const loadEmployees = async (showToast = false) => {
     if (showToast) setRefreshing(true);
@@ -65,8 +68,11 @@ export default function Empleados() {
           description: "Registros y credenciales sincronizadas.",
         });
       }
-    } catch {
-      // Fallback
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.mensaje ||
+          "No se pudo cargar el directorio de personal"
+      );
     } finally {
       setLoading(false);
       if (showToast) setRefreshing(false);
@@ -126,9 +132,13 @@ export default function Empleados() {
     const currentStatus = emp.permisoAcceso ?? emp.acceso ?? true;
     const newStatus = !currentStatus;
     try {
-      const updated = await empleadoService.cambiarEstado(emp.id, newStatus);
+      const updated = await empleadoService.cambiarEstado(emp.dbId ?? emp.id, newStatus);
       setEmployees((prev) =>
-        prev.map((e) => (e.id === emp.id ? { ...e, ...updated, permisoAcceso: newStatus, acceso: newStatus } : e))
+        prev.map((e) =>
+          (e.dbId ?? e.id) === (emp.dbId ?? emp.id)
+            ? { ...e, ...updated, permisoAcceso: newStatus, acceso: newStatus }
+            : e
+        )
       );
       setConfirmDialogState({ isOpen: false, employee: null });
       toast.success(
@@ -153,20 +163,24 @@ export default function Empleados() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCsvDrawerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-secondary border border-border hover:bg-muted text-foreground text-xs font-semibold rounded-md shadow-2xs transition-colors"
-          >
-            <Upload size={14} />
-            <span>Carga Masiva (CSV)</span>
-          </button>
-          <button
-            onClick={handleOpenCreate}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white text-xs font-semibold rounded-md shadow-2xs hover:bg-primary/90 transition-colors"
-          >
-            <Plus size={15} />
-            <span>Nuevo Empleado</span>
-          </button>
+          {puedeEscribir && (
+            <button
+              onClick={() => setCsvDrawerOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-secondary border border-border hover:bg-muted text-foreground text-xs font-semibold rounded-md shadow-2xs transition-colors"
+            >
+              <Upload size={14} />
+              <span>Carga Masiva (CSV)</span>
+            </button>
+          )}
+          {puedeEscribir && (
+            <button
+              onClick={handleOpenCreate}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white text-xs font-semibold rounded-md shadow-2xs hover:bg-primary/90 transition-colors"
+            >
+              <Plus size={15} />
+              <span>Nuevo Empleado</span>
+            </button>
+          )}
           <button
             onClick={() => loadEmployees(true)}
             disabled={refreshing}
@@ -279,13 +293,15 @@ export default function Empleados() {
                         >
                           <Eye size={15} />
                         </Link>
-                        <button
-                          onClick={() => handleOpenEdit(emp)}
-                          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                          title="Editar Ficha"
-                        >
-                          <Edit2 size={15} />
-                        </button>
+                        {puedeEscribir && (
+                          <button
+                            onClick={() => handleOpenEdit(emp)}
+                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                            title="Editar Ficha"
+                          >
+                            <Edit2 size={15} />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleOpenQr(emp)}
                           className="p-1.5 rounded-md hover:bg-muted text-primary hover:text-primary transition-colors cursor-pointer"
@@ -293,22 +309,24 @@ export default function Empleados() {
                         >
                           <QrCode size={15} />
                         </button>
-                        <button
-                          onClick={() =>
-                            setConfirmDialogState({
-                              isOpen: true,
-                              employee: emp,
-                            })
-                          }
-                          className={`p-1.5 rounded-md hover:bg-muted transition-colors cursor-pointer ${
-                            isActivo
-                              ? "text-destructive hover:bg-destructive/10"
-                              : "text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-                          }`}
-                          title={isActivo ? "Deshabilitar Registro" : "Reactivar Registro"}
-                        >
-                          {isActivo ? <PowerOff size={15} /> : <Power size={15} />}
-                        </button>
+                        {puedeEscribir && (
+                          <button
+                            onClick={() =>
+                              setConfirmDialogState({
+                                isOpen: true,
+                                employee: emp,
+                              })
+                            }
+                            className={`p-1.5 rounded-md hover:bg-muted transition-colors cursor-pointer ${
+                              isActivo
+                                ? "text-destructive hover:bg-destructive/10"
+                                : "text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                            }`}
+                            title={isActivo ? "Deshabilitar Registro" : "Reactivar Registro"}
+                          >
+                            {isActivo ? <PowerOff size={15} /> : <Power size={15} />}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

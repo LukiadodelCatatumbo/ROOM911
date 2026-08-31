@@ -9,7 +9,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class DashboardResumenDTO {
     private Long empleados;
+    private Long empleadosConPermiso;
     private Long departamentos;
     private Long accesosHoy;
     private Long denegadosHoy;
+    private Long enPlanta;
 }

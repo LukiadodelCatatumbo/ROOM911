@@ -149,3 +149,64 @@
 4. Se ajustaron las condiciones de HU-003 a HU-007 para expresar escenarios generales, claros y verificables.
 5. Se mantuvo HU-001 como historia funcional vigente y se dejó intacto únicamente su bloque histórico original.
 6. Se actualizó el handoff y la matriz para continuar con el paquete HU-008 a HU-014.
+
+### 🛡️ Fase 9: Seguridad JWT real, roles por endpoint y bootstrap sin hardcoding (backend)
+* **Fecha:** 2026-08-31
+* **Objetivo:** Reemplazar el `permitAll()` global por autenticación JWT con roles diferenciados, unificar el sistema de usuarios en `Administrador` y eliminar credenciales hardcodeadas. Detalle completo y trabajo pendiente en [`HANDOFF_INTEGRACION_SEGURIDAD.md`](./HANDOFF_INTEGRACION_SEGURIDAD.md).
+
+#### Cambios realizados:
+1. **JWT stateless:** nuevos `security/JwtService.java`, `security/JwtAuthenticationFilter.java`; `SecurityConfig` reescrito (solo públicos `/api/auth/login` y `/api/acceso/**`; resto requiere token). Secret y expiración por `JWT_SECRET`/`JWT_EXPIRATION_MS`.
+2. **Login unificado:** nuevos `AuthController` (`POST /api/auth/login`) y `AuthServiceImpl` sobre la entidad `Administrador` (con BCrypt). Se ELIMINÓ el sistema paralelo `AdminUser` (entity, controller, DTO, service, repository). Respuesta con `token`, `rol`, `correo`. Error único genérico 401 (anti-enumeración de usuarios).
+3. **Roles:** `Administrador.rol` (`SUPER_ADMIN`/`ADMIN_ACCESOS`/`ADMIN_SISTEMAS`, validado en service). `@PreAuthorize` en escrituras de empleados, departamentos, visitantes, historial, intentos, PDF, administradores y auditoría.
+4. **Manejo de errores:** `GlobalExceptionHandler` con 400 (`IllegalArgumentException`), 401 (`BadCredentials`/`Authentication`), 403 (`AccessDenied`) y 500 sin filtrar mensajes internos.
+5. **Dashboard real:** `DashboardResumenDTO` ampliado (`empleadosConPermiso`, `enPlanta`), `AccesosSemanaDTO` con `concedidos`/`denegados`, nuevos endpoints `/dashboard/departamentos` y `/dashboard/ultimos-accesos`. Eliminado `@CrossOrigin("*")`.
+6. **Bootstrap sin hardcoding:** `DataInitializer` toma la contraseña de `ROOM911_SEED_PASSWORD` (o genera una aleatoria y la registra en el log); roles asignados a los tres administradores sembrados. `.env.example` y `docker-compose.yml` actualizados (backend exige `JWT_SECRET`).
+
+#### Estado y pendiente:
+* Backend compila (`./mvnw compile` ✅). **El frontend aún NO está adaptado** (sigue con mocks y login viejo `/admin/login`) — ver handoff, sección 2, para el orden de trabajo.
+* Pendiente backend menor: `empleadosCount` en `DepartamentoResponseDTO`, `CorsConfig` por variable de entorno, evitar doble registro del filtro JWT, tests de seguridad, README.
+
+---
+
+### 🧹 Fase 10: Frontend sin mocks, backend menor y verificación integral de la integración de seguridad
+* **Fecha:** 2026-08-31
+* **Objetivo:** Completar la integración de seguridad punta a punta: eliminar todo mock del frontend, cerrar los ajustes menores del backend, ejecutar la suite de tests por primera vez y verificar E2E (Docker + login + dashboard). Detalle de la sesión anterior en [`HANDOFF_INTEGRACION_SEGURIDAD.md`](./HANDOFF_INTEGRACION_SEGURIDAD.md).
+
+#### Cambios realizados:
+
+1. **Frontend sin mocks (`pnpm build` ✅):**
+   - `services/authService.ts` reescrito contra `POST /auth/login`; helpers `puedeGestionarPersonal()`, `puedeGestionarAdministradores()`, `esSuperAdmin()`. Sin credenciales demo.
+   - `pages/Login.tsx` sin campos pre-rellenados; muestra el `mensaje` real del backend.
+   - `services/api.ts` limpia sesión y redirige a `/login` ante 401 (excepto en el propio login).
+   - `services/adminService.ts` solo contra `/administradores`; `contrasena` opcional en update; eliminar = DELETE real (sin toggle de estado).
+   - `pages/Administradores.tsx` con gating por rol (eliminar solo SUPER_ADMIN, ConfirmDialog destructivo).
+   - `services/dashboardService.ts` contra los 4 endpoints reales de `/dashboard`; errores propagados.
+   - `services/empleadoService.ts` sin mocks; `cambiarEstado` = GET + PUT completo; rutas por PK (`dbId`).
+   - `services/accesoService.ts` historial solo `/intento-acceso`; nuevo `descargarPdf()`.
+   - `pages/EmpleadoCsvDrawer.tsx` reescrito: parser CSV real + `POST /empleados/importar/{departamentoId}` (FormData).
+   - `pages/Departamentos.tsx` envía `descripcion` real; `services/departamentoService.ts` mapea `empleadosCount` del backend.
+   - `routes/AppRoutes.tsx` con `React.lazy` + guardia `AdminRoute`; `Sidebar.tsx` con sesión real e ítem Administradores por rol.
+   - **`src/data/mockData.ts` eliminado** — cero referencias a mocks en el repo frontend.
+
+2. **Backend menor:**
+   - `DepartamentoResponseDTO.empleadosCount` calculado con `countByDepartamentoIdAndActivoTrue` en todos los flujos del service.
+   - `CorsConfig` lee `cors.allowed-origins` (sin orígenes hardcodeados).
+   - `JwtAuthenticationFilter` sin `@Component`; registrado como `@Bean` en `SecurityConfig` (sin doble registro).
+   - `AdministradorDTO.contrasena` opcional: obligatoria al crear, solo se actualiza si viene con valor.
+
+3. **Tests verificados por primera vez (`./mvnw test` ✅ 13/13):**
+   - Nuevos `JwtServiceTest`, `AuthControllerTest` (`@WebMvcTest` + `@MockitoBean`, Spring Boot 3.5) y `RoleSecurityTest` (401 sin token, 403 por rol, 201/204 según rol).
+   - Eliminado `BackendApplicationTests` (stub generado que exige una PostgreSQL live; sin BD de pruebas en el proyecto, no podía ejecutarse nunca). La verificación de contexto completo queda cubierta por el E2E.
+
+4. **Verificación E2E (Docker, ✅):**
+   - Reiniciado el esquema dev obsoleto (contenía tablas del sistema `AdminUser` eliminado y administradores sin columna `rol`); `DataInitializer` resembró todo con `ROOM911_SEED_PASSWORD`.
+   - `POST /api/auth/login`: 200 + token con `superadmin`; 401 genérico con credenciales inválidas; 401 sin token en `/api/dashboard/resumen`.
+   - Con token: `/api/dashboard/resumen` con datos reales y `/api/departamentos` con `empleadosCount` distinto de 0.
+   - Gating verificado: `j.reyes` (ADMIN_ACCESOS) consulta dashboard (200) pero `POST /api/administradores` responde 403.
+   - Smoke GUI con `pnpm dev`: login redirige a `/dashboard`, panel con datos reales y tarjetas de departamentos mostrando el personal asignado real.
+
+5. **Documentación:**
+   - `README.md`: nuevas secciones de autenticación (`POST /api/auth/login`), roles y variables de seguridad (`JWT_SECRET`, `ROOM911_SEED_PASSWORD`, `CORS_ALLOWED_ORIGINS`, `VITE_API_URL`).
+
+#### Deuda conocida (no bloqueante):
+* `SimuladorAcceso.tsx` decide el resultado en el cliente y luego registra en el backend (la autorización real vive en `/api/acceso`); `CredencialDigital` usa la ruta demo `/credencial/EMP-0042`.

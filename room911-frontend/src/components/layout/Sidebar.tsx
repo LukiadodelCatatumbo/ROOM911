@@ -16,18 +16,24 @@ const menuItems = [
   {
     category: "GESTIÓN Y CONTROL",
     items: [
-      { label: "Panel Principal", path: "/dashboard", icon: LayoutDashboard },
-      { label: "Personal y Empleados", path: "/empleados", icon: Users },
-      { label: "Áreas y Departamentos", path: "/departamentos", icon: Building2 },
-      { label: "Auditoría y Registros", path: "/historial", icon: FileText },
-      { label: "Administradores", path: "/administradores", icon: ShieldAlert },
+      { label: "Panel Principal", path: "/dashboard", icon: LayoutDashboard, roles: null },
+      { label: "Personal y Empleados", path: "/empleados", icon: Users, roles: null },
+      { label: "Áreas y Departamentos", path: "/departamentos", icon: Building2, roles: null },
+      { label: "Auditoría y Registros", path: "/historial", icon: FileText, roles: null },
+      // Solo SUPER_ADMIN y ADMIN_SISTEMAS gestionan cuentas (coincide con los @PreAuthorize del backend)
+      {
+        label: "Administradores",
+        path: "/administradores",
+        icon: ShieldAlert,
+        roles: ["SUPER_ADMIN", "ADMIN_SISTEMAS"],
+      },
     ],
   },
   {
     category: "TERMINALES Y MÓVIL",
     items: [
-      { label: "Simulador de Terminal", path: "/simulador", icon: ScanLine },
-      { label: "Credencial Móvil (Demo)", path: "/credencial/EMP-0042", icon: Smartphone },
+      { label: "Simulador de Terminal", path: "/simulador", icon: ScanLine, roles: null },
+      { label: "Credencial Móvil (Demo)", path: "/credencial/EMP-0042", icon: Smartphone, roles: null },
     ],
   },
 ];
@@ -35,6 +41,16 @@ const menuItems = [
 export function Sidebar() {
   const location = useLocation();
   const user = authService.getUser();
+  const rol = user?.rol;
+
+  const gruposFiltrados = menuItems
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => !item.roles || (rol != null && item.roles.includes(rol))
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
 
   const handleLogout = () => {
     authService.logout();
@@ -63,7 +79,7 @@ export function Sidebar() {
 
         {/* Menu Navigation */}
         <nav className="p-3 space-y-6">
-          {menuItems.map((group) => (
+          {gruposFiltrados.map((group) => (
             <div key={group.category}>
               <p className="px-3 text-[10px] font-mono text-[#64748B] tracking-wider uppercase mb-2 font-semibold">
                 {group.category}
@@ -106,9 +122,11 @@ export function Sidebar() {
             <span className="w-2 h-2 rounded-full bg-emerald-500" title="En línea" />
           </div>
           <p className="text-xs font-semibold text-white mt-1 truncate">
-            {user?.nombre || "Dr. Jorge Reyes Montoya"}
+            {user?.nombre || user?.username || "Usuario"}
           </p>
-          <p className="text-[11px] text-slate-400 truncate">{user?.email || "j.reyes@pharma911.com"}</p>
+          <p className="text-[11px] text-slate-400 truncate">
+            {user?.email || user?.rol || "—"}
+          </p>
         </div>
 
         <button

@@ -5,6 +5,7 @@ import com.room911.dto.AuditoriaResponseDTO;
 import com.room911.service.interfaces.AuditoriaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +18,7 @@ public class AuditoriaController {
     private final AuditoriaService auditoriaService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_SISTEMAS')")
     public AuditoriaResponseDTO guardar(@Valid @RequestBody AuditoriaDTO dto) {
         return auditoriaService.guardar(dto);
     }

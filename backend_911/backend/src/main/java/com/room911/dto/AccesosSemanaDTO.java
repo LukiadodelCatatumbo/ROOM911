@@ -11,6 +11,8 @@ public class AccesosSemanaDTO {
 
     private String dia;
 
-    private Long cantidad;
+    private Long concedidos;
+
+    private Long denegados;
 
 }

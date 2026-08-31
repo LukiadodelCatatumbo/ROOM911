@@ -26,6 +26,8 @@ public interface AccessAttemptRepository extends JpaRepository<AccessAttempt, Lo
             LocalDateTime fin
     );
 
+    List<AccessAttempt> findTop10ByOrderByFechaAccesoDesc();
+
     @Query("""
         SELECT COUNT(a)
         FROM AccessAttempt a
@@ -41,7 +43,8 @@ public interface AccessAttemptRepository extends JpaRepository<AccessAttempt, Lo
     @Query(value = """
         SELECT
             TO_CHAR(acceso_date, 'Dy') AS dia,
-            COUNT(*) AS cantidad
+            SUM(CASE WHEN exito = true THEN 1 ELSE 0 END) AS concedidos,
+            SUM(CASE WHEN exito = false THEN 1 ELSE 0 END) AS denegados
         FROM intento_acceso
         WHERE acceso_date >= :inicio
         GROUP BY TO_CHAR(acceso_date, 'Dy')

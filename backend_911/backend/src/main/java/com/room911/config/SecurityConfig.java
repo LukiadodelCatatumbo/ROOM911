@@ -1,24 +1,51 @@
 package com.room911.config;
 
+import com.room911.security.JwtAuthenticationFilter;
+import com.room911.security.JwtService;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-
+/**
+ * Seguridad stateless por JWT. Solo el login y el endpoint físico de
+ * validación de acceso (consumido por lectores/simulador) son públicos;
+ * el resto exige token y los permisos finos se declaran con @PreAuthorize.
+ */
 @Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
+
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
+    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService) {
+        return new JwtAuthenticationFilter(jwtService);
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
                 .cors(cors -> {})
                 .csrf(csrf -> csrf.disable())
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()
+                        .requestMatchers("/api/auth/login", "/api/acceso/**").permitAll()
+                        .anyRequest().authenticated()
                 )
-                .httpBasic(Customizer.withDefaults());
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, exception) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED))
+                )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

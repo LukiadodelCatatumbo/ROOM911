@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,6 +22,7 @@ public class HistorialAccesoController {
      * Registrar un ingreso
      */
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<HistorialAccesoResponseDTO> guardar(
             @Valid @RequestBody HistorialAccesoDTO dto){
         return ResponseEntity
@@ -62,6 +64,7 @@ public class HistorialAccesoController {
      */
 
     @PutMapping("/{id}/salida")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<HistorialAccesoResponseDTO> RegistrarSalida(
             @PathVariable Long id){
         return ResponseEntity.ok(historialAccesoService.registrarSalida(id));

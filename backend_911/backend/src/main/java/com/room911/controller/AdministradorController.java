@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.room911.dto.AdministradorResponseDTO;
 import com.room911.mapper.AdministradorMapper;
@@ -21,6 +22,7 @@ public class AdministradorController {
     private final AdministradorService administradorService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_SISTEMAS')")
     public ResponseEntity<AdministradorResponseDTO> guardar(
             @Valid @RequestBody AdministradorDTO dto) {
 
@@ -44,6 +46,7 @@ public class AdministradorController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_SISTEMAS')")
     public ResponseEntity<AdministradorResponseDTO> actualizar(
             @PathVariable Long id,
             @Valid @RequestBody AdministradorDTO dto) {
@@ -52,6 +55,7 @@ public class AdministradorController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         administradorService.eliminar(id);
         return ResponseEntity.noContent().build();

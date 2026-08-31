@@ -5,17 +5,11 @@ import {
   Search,
   Edit2,
   Trash2,
-  Lock,
-  UserCheck,
-  UserX,
   AlertCircle,
   X,
-  PowerOff,
-  Power,
   RefreshCw,
   UserMinus,
   Check,
-  Shield,
 } from "lucide-react";
 import { adminService } from "../services/adminService";
 import { authService } from "../services/authService";
@@ -41,6 +35,10 @@ export default function Administradores() {
   const [selectedRole, setSelectedRole] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const currentUser = authService.getCurrentUser();
+  // Coincide con los @PreAuthorize del backend: crear/editar requiere
+  // SUPER_ADMIN o ADMIN_SISTEMAS; eliminar es exclusivo de SUPER_ADMIN.
+  const puedeGestionar = authService.puedeGestionarAdministradores();
+  const esSuperAdmin = authService.esSuperAdmin();
 
   // Modal / Form state
   const [formOpen, setFormOpen] = useState(false);
@@ -133,8 +131,11 @@ export default function Administradores() {
           description: "Lista de supervisores autorizados sincronizada.",
         });
       }
-    } catch {
-      // Fallback
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.mensaje ||
+          "No se pudieron cargar los administradores"
+      );
     } finally {
       setLoading(false);
       if (showToast) setRefreshing(false);
@@ -299,43 +300,45 @@ export default function Administradores() {
       }
       setFormOpen(false);
       loadAdmins();
-    } catch {
-      toast.error("Error al procesar la cuenta de administrador");
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.mensaje ||
+          "Error al procesar la cuenta de administrador"
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const handleToggleAdminStatus = async () => {
+  /** Eliminación real (DELETE /administradores/{id}); el backend la restringe a SUPER_ADMIN. */
+  const handleEliminarAdmin = async () => {
     const adm = confirmDialog.admin;
     if (!adm) return;
 
     const isSelf =
       adm.username === currentUser?.username ||
-      adm.id === currentUser?.id ||
-      (currentUser?.rol === "SUPER_ADMIN" && adm.rol === "SUPER_ADMIN");
+      adm.id === currentUser?.id;
 
-    if (isSelf && adm.activo) {
+    if (isSelf) {
       toast.error("Operación bloqueada", {
-        description: "El Super Administrador no puede deshabilitar su propia cuenta activa.",
+        description: "No puede eliminar su propia cuenta mientras tiene sesión activa.",
       });
       setConfirmDialog({ isOpen: false, admin: null });
       return;
     }
 
-    const newStatus = !adm.activo;
     try {
-      await adminService.cambiarEstado(adm.id, newStatus);
+      await adminService.eliminar(adm.dbId ?? adm.id);
       setConfirmDialog({ isOpen: false, admin: null });
-      toast.success(
-        newStatus ? "Cuenta de supervisor reactivada" : "Cuenta de supervisor deshabilitada (Soft Delete)",
-        {
-          description: `El estado de ${adm.nombre} se actualizó manteniendo la trazabilidad BPF.`,
-        }
-      );
+      toast.success("Administrador eliminado", {
+        description: `La cuenta de ${adm.nombre} fue eliminada del sistema.`,
+      });
       loadAdmins();
-    } catch {
-      toast.error("No se pudo actualizar el estado del administrador.");
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.mensaje ||
+          "No se pudo eliminar el administrador."
+      );
     }
   };
 
@@ -362,13 +365,15 @@ export default function Administradores() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleOpenCreate}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white text-xs font-semibold rounded-md shadow-2xs hover:bg-primary/90 transition-colors cursor-pointer"
-          >
-            <Plus size={15} />
-            <span>Nuevo Administrador</span>
-          </button>
+          {puedeGestionar && (
+            <button
+              onClick={handleOpenCreate}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white text-xs font-semibold rounded-md shadow-2xs hover:bg-primary/90 transition-colors cursor-pointer"
+            >
+              <Plus size={15} />
+              <span>Nuevo Administrador</span>
+            </button>
+          )}
           <button
             onClick={() => loadAdmins(true)}
             disabled={refreshing}
@@ -507,33 +512,33 @@ export default function Administradores() {
                       </td>
                       <td className="px-6 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenEdit(adm)}
-                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                            title="Editar permisos"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                          <button
-                            disabled={isSelf}
-                            onClick={() => !isSelf && setConfirmDialog({ isOpen: true, admin: adm })}
-                            className={`p-1.5 rounded-md transition-colors ${
-                              isSelf
-                                ? "text-muted-foreground/30 cursor-not-allowed"
-                                : adm.activo
-                                ? "text-destructive hover:bg-destructive/10 cursor-pointer"
-                                : "text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 cursor-pointer"
-                            }`}
-                            title={
-                              isSelf
-                                ? "No puede deshabilitar su propia cuenta de Super Administrador"
-                                : adm.activo
-                                ? "Deshabilitar cuenta"
-                                : "Reactivar cuenta"
-                            }
-                          >
-                            {adm.activo ? <PowerOff size={14} /> : <Power size={14} />}
-                          </button>
+                          {puedeGestionar && (
+                            <button
+                              onClick={() => handleOpenEdit(adm)}
+                              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                              title="Editar permisos"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                          )}
+                          {esSuperAdmin && (
+                            <button
+                              disabled={isSelf}
+                              onClick={() => !isSelf && setConfirmDialog({ isOpen: true, admin: adm })}
+                              className={`p-1.5 rounded-md transition-colors ${
+                                isSelf
+                                  ? "text-muted-foreground/30 cursor-not-allowed"
+                                  : "text-destructive hover:bg-destructive/10 cursor-pointer"
+                              }`}
+                              title={
+                                isSelf
+                                  ? "No puede eliminar su propia cuenta"
+                                  : "Eliminar cuenta (borrado definitivo)"
+                              }
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -823,24 +828,14 @@ export default function Administradores() {
         </div>
       )}
 
-      {/* Confirm Soft Delete Modal */}
+      {/* Confirm Delete Modal (borrado real, solo SUPER_ADMIN) */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
-        title={
-          confirmDialog.admin?.activo
-            ? "¿Deshabilitar cuenta de administrador?"
-            : "¿Reactivar cuenta de administrador?"
-        }
-        description={
-          confirmDialog.admin?.activo
-            ? `Al deshabilitar al supervisor ${confirmDialog.admin?.nombre} (${confirmDialog.admin?.username}), se revocarán sus credenciales de acceso al panel de control. Todos sus registros de auditoría permanecerán inmutables bajo norma ISO 27001 (nunca se borra de la base de datos).`
-            : `Al reactivar la cuenta de ${confirmDialog.admin?.nombre}, recuperará el acceso al panel según su rol asignado.`
-        }
-        confirmLabel={
-          confirmDialog.admin?.activo ? "Deshabilitar Cuenta" : "Reactivar Cuenta"
-        }
-        isDestructive={confirmDialog.admin?.activo}
-        onConfirm={handleToggleAdminStatus}
+        title="¿Eliminar cuenta de administrador?"
+        description={`Se eliminará definitivamente la cuenta de ${confirmDialog.admin?.nombre} (${confirmDialog.admin?.username}). Esta operación no es reversible; los registros de auditoría asociados se conservan conforme a la norma ISO 27001.`}
+        confirmLabel="Eliminar Cuenta"
+        isDestructive
+        onConfirm={handleEliminarAdmin}
         onCancel={() => setConfirmDialog({ isOpen: false, admin: null })}
       />
     </div>

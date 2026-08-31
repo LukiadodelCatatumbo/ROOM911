@@ -26,7 +26,12 @@ public class AdministradorDTO {
     @NotBlank (message = "El usuario es obligatorio")
     private String usuario;
 
-    @NotBlank (message = "La contraseña es obligatoria")
+    /**
+     * Obligatoria al crear; en actualización (PUT) puede venir vacía para
+     * conservar la contraseña actual (se valida en AdministradorServiceImpl).
+     */
     private String contrasena;
+
+    private String rol;
 
 }

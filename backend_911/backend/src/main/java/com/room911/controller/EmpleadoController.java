@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,6 +24,7 @@ public class EmpleadoController {
      */
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<EmpleadoResponseDTO> guardar(
             @Valid @RequestBody EmpleadoDTO dto){
         return ResponseEntity
@@ -76,6 +78,7 @@ public class EmpleadoController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<EmpleadoResponseDTO> actualiza(
             @PathVariable Long id,
             @Valid @RequestBody EmpleadoDTO dto){
@@ -86,6 +89,7 @@ public class EmpleadoController {
      * Eliminar un empleado
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<Void> eliminar(@PathVariable Long id){
         empleadoService.eliminar(id);
         return ResponseEntity.noContent().build();
@@ -96,6 +100,7 @@ public class EmpleadoController {
      * asigna a un departamento
      */
     @PostMapping("/importar/{departamentoId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<String> importarCSV(
             @RequestParam("archivo") MultipartFile archivo,
             @PathVariable Long departamentoId){

@@ -1,8 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Drawer } from "../components/common/Drawer";
 import { Upload, FileText, CheckCircle2, AlertCircle, AlertTriangle, Check } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "../components/common/Badge";
+import { empleadoService } from "../services/empleadoService";
+import { departamentoService } from "../services/departamentoService";
+import { Department } from "../types";
 
 export interface EmpleadoCsvDrawerProps {
   isOpen?: boolean;
@@ -14,23 +16,36 @@ export interface EmpleadoCsvDrawerProps {
 
 interface CsvRowPreview {
   fila: number;
-  id: string;
   nombre: string;
   apellido: string;
-  departamento: string;
+  documento: string;
+  correo: string;
   cargo: string;
-  email: string;
-  acceso: string;
   errores: string[];
 }
 
-const SAMPLE_CSV_ROWS: CsvRowPreview[] = [
-  { fila: 1, id: "EMP-0601", nombre: "Valentina", apellido: "Reyes Ortega", departamento: "Producción", cargo: "Técnica", email: "v.reyes2@pharma911.com", acceso: "true", errores: [] },
-  { fila: 2, id: "EMP-0602", nombre: "José", apellido: "Morales Vega", departamento: "", cargo: "Supervisor", email: "j.morales@pharma911.com", acceso: "true", errores: ["Departamento requerido"] },
-  { fila: 3, id: "EMP-0603", nombre: "Ana", apellido: "Castillo Ramos", departamento: "Control de Calidad", cargo: "Analista", email: "ana.castillo2@pharma911.com", acceso: "false", errores: [] },
-  { fila: 4, id: "EMP-0604", nombre: "Pedro", apellido: "", departamento: "Almacén y Logística", cargo: "Operario", email: "p.santos@pharma911.com", acceso: "true", errores: ["Apellido requerido"] },
-  { fila: 5, id: "EMP-0605", nombre: "María", apellido: "Vega Torres", departamento: "Investigación y Desarrollo", cargo: "Investigadora", email: "m.vega2@pharma911.com", acceso: "true", errores: [] },
-];
+const CABECERA_ESPERADA = "nombre, apellido, documento, correo, cargo";
+
+/** Divide una línea CSV respetando comillas simples dobles. */
+const parsearLineaCsv = (linea: string): string[] => {
+  const campos: string[] = [];
+  let actual = "";
+  let entreComillas = false;
+  for (const char of linea) {
+    if (char === '"') {
+      entreComillas = !entreComillas;
+    } else if (char === "," && !entreComillas) {
+      campos.push(actual);
+      actual = "";
+    } else {
+      actual += char;
+    }
+  }
+  campos.push(actual);
+  return campos.map((c) => c.trim());
+};
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function EmpleadoCsvDrawer({
   open,
@@ -42,25 +57,103 @@ export function EmpleadoCsvDrawer({
   const isDrawerOpen = isOpen !== undefined ? isOpen : (open ?? false);
   const [step, setStep] = useState<"upload" | "preview">("upload");
   const [dragOver, setDragOver] = useState(false);
-  const [rows, setRows] = useState<CsvRowPreview[]>(SAMPLE_CSV_ROWS);
+  const [rows, setRows] = useState<CsvRowPreview[]>([]);
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departamentoId, setDepartamentoId] = useState<string>("");
+  const [importando, setImportando] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isDrawerOpen || departments.length > 0) return;
+    departamentoService
+      .listarTodos()
+      .then((data) => {
+        const activos = data.filter((d) => d.activo !== false);
+        setDepartments(activos);
+        if (activos.length > 0) setDepartamentoId(String(activos[0].id));
+      })
+      .catch(() => {
+        toast.error("No se pudieron cargar los departamentos");
+      });
+  }, [isDrawerOpen, departments.length]);
 
   const validRows = rows.filter((r) => r.errores.length === 0);
   const errorRows = rows.filter((r) => r.errores.length > 0);
 
-  const handleFileSelect = () => {
-    setRows(SAMPLE_CSV_ROWS);
-    setStep("preview");
+  const procesarArchivo = (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      toast.error("El archivo debe tener extensión .csv");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const texto = String(reader.result || "");
+      const lineas = texto.split(/\r?\n/).filter((l) => l.trim());
+      if (lineas.length < 2) {
+        toast.error("El archivo no contiene registros para importar");
+        return;
+      }
+      const preview: CsvRowPreview[] = lineas.slice(1).map((linea, idx) => {
+        const [nombre, apellido, documento, correo, cargo] = parsearLineaCsv(linea);
+        const errores: string[] = [];
+        if (!nombre) errores.push("Nombre requerido");
+        if (!apellido) errores.push("Apellido requerido");
+        if (!documento) errores.push("Documento requerido");
+        if (!correo || !emailRegex.test(correo)) errores.push("Correo inválido");
+        if (!cargo) errores.push("Cargo requerido");
+        return {
+          fila: idx + 2,
+          nombre,
+          apellido,
+          documento,
+          correo,
+          cargo,
+          errores,
+        };
+      });
+      setArchivo(file);
+      setRows(preview);
+      setStep("preview");
+    };
+    reader.onerror = () => toast.error("No se pudo leer el archivo");
+    reader.readAsText(file);
   };
 
-  const handleConfirm = () => {
-    toast.success(`${validRows.length} Empleados Importados con Éxito`, {
-      description: errorRows.length > 0 ? `${errorRows.length} filas con error fueron omitidas.` : "Todos los registros cargados en base de datos.",
-    });
-    setStep("upload");
-    onImportComplete?.();
-    onSuccess?.();
-    onClose();
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) procesarArchivo(file);
+    e.target.value = "";
+  };
+
+  const handleConfirm = async () => {
+    if (!archivo) return;
+    if (!departamentoId) {
+      toast.error("Seleccione el departamento destino de la importación");
+      return;
+    }
+    setImportando(true);
+    try {
+      const mensaje = await empleadoService.importarCSV(
+        Number(departamentoId),
+        archivo
+      );
+      toast.success("Importación finalizada", {
+        description: mensaje || `${validRows.length} empleados enviados al servidor.`,
+      });
+      setStep("upload");
+      setArchivo(null);
+      setRows([]);
+      onImportComplete?.();
+      onSuccess?.();
+      onClose();
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.mensaje || "Error al importar el archivo CSV"
+      );
+    } finally {
+      setImportando(false);
+    }
   };
 
   const handleClose = () => {
@@ -79,8 +172,28 @@ export function EmpleadoCsvDrawer({
       {step === "upload" ? (
         <div className="p-6 space-y-6">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Suba un archivo con formato <code>.csv</code> delimitado por comas. El sistema verificará que cada empleado cuente con departamento válido, nombre y correo único.
+            Suba un archivo <code>.csv</code> delimitado por comas con la cabecera{" "}
+            <code>{CABECERA_ESPERADA}</code>. Los empleados se crearán en el departamento seleccionado.
           </p>
+
+          {/* Selector de departamento destino */}
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1.5">
+              Departamento destino <span className="text-destructive">*</span>
+            </label>
+            <select
+              value={departamentoId}
+              onChange={(e) => setDepartamentoId(e.target.value)}
+              className="w-full px-3 py-2 bg-background border border-border rounded-md text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+            >
+              {departments.length === 0 && <option value="">Sin departamentos disponibles</option>}
+              {departments.map((d) => (
+                <option key={d.id} value={String(d.id)}>
+                  {d.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Drag and Drop Zone */}
           <div
@@ -92,7 +205,8 @@ export function EmpleadoCsvDrawer({
             onDrop={(e) => {
               e.preventDefault();
               setDragOver(false);
-              handleFileSelect();
+              const file = e.dataTransfer.files?.[0];
+              if (file) procesarArchivo(file);
             }}
             className={[
               "border-2 border-dashed rounded-lg p-10 flex flex-col items-center justify-center gap-3 transition-colors text-center cursor-pointer",
@@ -130,18 +244,8 @@ export function EmpleadoCsvDrawer({
               <span>Estructura de encabezados requerida:</span>
             </p>
             <code className="text-[11px] font-mono text-muted-foreground block bg-white dark:bg-card p-2 rounded-xs border border-border/70 overflow-x-auto">
-              id, nombre, apellido, departamento, cargo, email, acceso
+              {CABECERA_ESPERADA}
             </code>
-          </div>
-
-          <div className="flex items-center justify-between pt-2">
-            <button
-              onClick={handleFileSelect}
-              type="button"
-              className="text-xs text-primary font-semibold hover:underline cursor-pointer"
-            >
-              Cargar archivo CSV de muestra (Demo) →
-            </button>
           </div>
         </div>
       ) : (
@@ -179,9 +283,9 @@ export function EmpleadoCsvDrawer({
                 <thead className="bg-[#F0F2F6] dark:bg-secondary/40 text-muted-foreground font-semibold">
                   <tr>
                     <th className="px-3 py-2.5">#</th>
-                    <th className="px-3 py-2.5">ID</th>
                     <th className="px-3 py-2.5">Nombre Completo</th>
-                    <th className="px-3 py-2.5">Departamento</th>
+                    <th className="px-3 py-2.5">Documento</th>
+                    <th className="px-3 py-2.5">Correo</th>
                     <th className="px-3 py-2.5">Estado</th>
                   </tr>
                 </thead>
@@ -192,13 +296,11 @@ export function EmpleadoCsvDrawer({
                       className={row.errores.length > 0 ? "bg-rose-50/50 dark:bg-rose-950/20" : "bg-white dark:bg-card"}
                     >
                       <td className="px-3 py-2 font-mono text-muted-foreground">{row.fila}</td>
-                      <td className="px-3 py-2 font-mono font-semibold text-foreground">{row.id}</td>
                       <td className="px-3 py-2 text-foreground">
                         {row.nombre} {row.apellido || <span className="text-destructive italic">(Vacío)</span>}
                       </td>
-                      <td className="px-3 py-2">
-                        {row.departamento || <span className="text-destructive italic">(Falta área)</span>}
-                      </td>
+                      <td className="px-3 py-2 font-mono text-foreground">{row.documento || "—"}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{row.correo || "—"}</td>
                       <td className="px-3 py-2">
                         {row.errores.length > 0 ? (
                           <span className="text-destructive font-medium flex items-center gap-1">
@@ -229,11 +331,11 @@ export function EmpleadoCsvDrawer({
             <button
               onClick={handleConfirm}
               type="button"
-              disabled={validRows.length === 0}
+              disabled={validRows.length === 0 || importando}
               className="px-5 py-2 text-xs font-semibold bg-primary text-white rounded-md hover:bg-[#0A4F8A] transition-colors focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 cursor-pointer shadow-xs flex items-center gap-1.5"
             >
               <Upload size={14} />
-              <span>Importar {validRows.length} Empleados</span>
+              <span>{importando ? "Importando..." : `Importar ${validRows.length} Empleados`}</span>
             </button>
           </div>
         </div>

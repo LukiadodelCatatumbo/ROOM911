@@ -5,6 +5,7 @@ import com.room911.service.interfaces.AccessAttemptService;
 import com.room911.service.interfaces.PdfService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -17,6 +18,7 @@ public class AccessAttemptController {
     private final AccessAttemptService accessAttemptService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<AccessAttemptDTO> save(@RequestBody AccessAttemptDTO dto){
         return ResponseEntity.ok(accessAttemptService.save(dto));
     }
@@ -58,6 +60,7 @@ public class AccessAttemptController {
     private final PdfService pdfService;
 
     @GetMapping("/pdf/{empleadoId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<byte[]> descargarPdf(@PathVariable Long empleadoId) {
 
         byte[] pdf = pdfService.generarHistorialEmpleado(empleadoId);

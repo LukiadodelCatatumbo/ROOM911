@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +27,7 @@ public class VisitanteController {
      * Registrar un visitante
      */
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<VisitanteResponseDTO> guardar(
             @Valid @RequestBody VisitanteDTO dto) {
 
@@ -56,6 +58,7 @@ public class VisitanteController {
      * Actualizar la información de un visitante
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<VisitanteResponseDTO> actualizar(
             @PathVariable Long id,
             @Valid @RequestBody VisitanteDTO dto) {
@@ -68,6 +71,7 @@ public class VisitanteController {
      * Eliminación lógica del visitante
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
 
         visitanteService.eliminar(id);

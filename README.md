@@ -49,6 +49,37 @@ docker compose up -d --build
 
 No subas el archivo `.env` al repositorio. Las variables de conexión, puertos y URL de la API están documentadas en `.env.example`.
 
+### 🔑 Variables de entorno de seguridad
+
+| Variable | Dónde se usa | Descripción |
+|---|---|---|
+| `JWT_SECRET` | Backend | Clave HS256 para firmar los tokens JWT. **Obligatoria en producción** (32+ caracteres aleatorios); Docker Compose no levanta el backend sin ella. |
+| `ROOM911_SEED_PASSWORD` | Backend | Contraseña inicial de los usuarios sembrados por `DataInitializer`. Si se omite, se genera una aleatoria y se registra una sola vez en el log del backend. |
+| `CORS_ALLOWED_ORIGINS` | Backend | Orígenes permitidos, separados por coma (por defecto `http://localhost:5173`). |
+| `VITE_API_URL` | Frontend | URL base de la API que consume el frontend (por defecto `/api`; en desarrollo local `http://localhost:8080/api`). |
+
+## 🔐 Autenticación y roles
+
+La autenticación se realiza contra la tabla `administradores` mediante JWT (HS256, sin estado):
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"superadmin","password":"<ROOM911_SEED_PASSWORD>"}'
+```
+
+Respuesta exitosa (200): `{ "loginCorrecto": true, "token": "<JWT>", "username": ..., "rol": ... }`. Un fallo de credenciales responde siempre 401 genérico (`Credenciales inválidas`), sin revelar si el usuario existe. El token se envía en las demás peticiones como cabecera `Authorization: Bearer <token>`.
+
+Todos los endpoints de escritura y consulta requieren sesión válida, salvo `POST /api/auth/login` y `POST /api/acceso/**` (terminales lectoras sin sesión). Los roles definidos son:
+
+| Rol | Permisos principales |
+|---|---|
+| `SUPER_ADMIN` | Acceso total, incluido eliminar administradores (`DELETE /api/administradores/{id}`). |
+| `ADMIN_ACCESOS` | Gestión de personal: crear/editar empleados, departamentos, visitantes, historial e intentos de acceso, y generar informes PDF. |
+| `ADMIN_SISTEMAS` | Gestión de administradores: crear y editar usuarios (todas las escrituras sobre `/api/administradores` excepto eliminar). |
+
+Al primer arranque con la base de datos vacía, `DataInitializer` siembra tres usuarios con la contraseña `ROOM911_SEED_PASSWORD`: `superadmin` (`SUPER_ADMIN`), `j.reyes` (`ADMIN_ACCESOS`) y `a.sanchez` (`ADMIN_SISTEMAS`).
+
 ## 🛠️ Ejecución manual (alternativa)
 
 ### Base de datos

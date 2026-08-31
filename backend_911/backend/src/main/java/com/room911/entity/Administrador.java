@@ -40,6 +40,10 @@ public class Administrador {
     @Column (nullable = false)
     private String contrasena;
 
+    @NotBlank (message = "El rol es obligatorio")
+    @Column (nullable = false, length = 30)
+    private String rol;
+
     @Builder.Default
     @Column (nullable = false)
     private Boolean activo = true;

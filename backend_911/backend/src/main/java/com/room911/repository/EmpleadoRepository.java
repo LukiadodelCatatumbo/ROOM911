@@ -26,6 +26,10 @@ public interface EmpleadoRepository extends JpaRepository<Empleado, Long> {
 
     long countByActivoTrue();
 
+    long countByActivoTrueAndAccesoPermitidoTrue();
+
+    long countByDepartamentoIdAndActivoTrue(Long departamentoId);
+
     @Query("""
 SELECT new com.room911.dto.DepartamentoResumenDTO(
 d.nombre,

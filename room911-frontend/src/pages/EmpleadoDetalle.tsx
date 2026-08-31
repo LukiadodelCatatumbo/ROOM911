@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { empleadoService } from "../services/empleadoService";
 import { accesoService } from "../services/accesoService";
+import { authService } from "../services/authService";
 import { Employee, AccessEntry } from "../types";
 import { VariantBar } from "../components/common/VariantBar";
 import { AccesoBadge, AccessBadge } from "../components/common/Badge";
@@ -36,6 +37,8 @@ export default function EmpleadoDetalle() {
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [confirmToggleOpen, setConfirmToggleOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  // El backend restringe escrituras a SUPER_ADMIN y ADMIN_ACCESOS (@PreAuthorize)
+  const puedeEscribir = authService.puedeGestionarPersonal();
 
   // Pagination for employee history
   const [currentPage, setCurrentPage] = useState(1);
@@ -63,7 +66,7 @@ export default function EmpleadoDetalle() {
     if (!employee) return;
     const newStatus = !employee.permisoAcceso;
     try {
-      const updated = await empleadoService.cambiarEstado(employee.id, newStatus);
+      const updated = await empleadoService.cambiarEstado(employee.dbId ?? employee.id, newStatus);
       setEmployee(updated);
       setConfirmToggleOpen(false);
       toast.success(
@@ -74,6 +77,18 @@ export default function EmpleadoDetalle() {
       );
     } catch {
       toast.error("No se pudo actualizar el estado de acceso.");
+    }
+  };
+
+  const handleDescargarPdf = async () => {
+    if (!employee) return;
+    try {
+      await accesoService.descargarPdf(employee.dbId ?? employee.id);
+      toast.success(`Informe PDF generado para ${employee.nombre} ${employee.apellido}`);
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.mensaje || "No se pudo generar el informe PDF"
+      );
     }
   };
 
@@ -142,16 +157,18 @@ export default function EmpleadoDetalle() {
               : "Acceso revocado temporalmente por administración."}
           </p>
         </div>
-        <button
-          onClick={() => setConfirmToggleOpen(true)}
-          className={`px-3 py-1.5 rounded-md text-xs font-semibold border transition-colors ${
-            employee.permisoAcceso
-              ? "border-destructive/30 text-destructive hover:bg-destructive/10"
-              : "border-emerald-500 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-          }`}
-        >
-          {employee.permisoAcceso ? "Deshabilitar Acceso" : "Reactivar Acceso"}
-        </button>
+        {puedeEscribir && (
+          <button
+            onClick={() => setConfirmToggleOpen(true)}
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold border transition-colors ${
+              employee.permisoAcceso
+                ? "border-destructive/30 text-destructive hover:bg-destructive/10"
+                : "border-emerald-500 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+            }`}
+          >
+            {employee.permisoAcceso ? "Deshabilitar Acceso" : "Reactivar Acceso"}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -191,7 +208,7 @@ export default function EmpleadoDetalle() {
             <span>Exportar QR</span>
           </button>
           <button
-            onClick={() => toast.success(`Informe PDF generado para ${employee.nombre} ${employee.apellido}`)}
+            onClick={handleDescargarPdf}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-secondary border border-border hover:bg-muted text-foreground text-xs font-semibold rounded-md shadow-2xs transition-colors"
           >
             <Download size={14} />

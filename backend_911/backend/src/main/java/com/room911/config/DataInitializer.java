@@ -10,10 +10,12 @@ import com.room911.repository.DepartamentoRepository;
 import com.room911.repository.EmpleadoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -27,6 +29,9 @@ public class DataInitializer implements CommandLineRunner {
     private final AdministradorRepository administradorRepository;
     private final AccessAttemptRepository accessAttemptRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+
+    @Value("${room911.seed-password:}")
+    private String seedPassword;
 
     @Override
     public void run(String... args) {
@@ -47,24 +52,28 @@ public class DataInitializer implements CommandLineRunner {
             log.info("Departamentos sembrados exitosamente ({} creados).", depts.size());
         }
 
-        // 2. Administradores
+        // 2. Administradores (credenciales definidas por entorno, nunca en el código)
         if (administradorRepository.count() == 0) {
             log.info("Sembrando administradores y supervisores de acceso...");
+            String contrasena = resolverContrasenaInicial();
             List<Administrador> admins = List.of(
                     Administrador.builder()
                             .nombre("Super").apellido("Administrador")
                             .usuario("superadmin").correo("superadmin@pharma911.com")
-                            .contrasena(passwordEncoder.encode("Admin123*!"))
+                            .contrasena(passwordEncoder.encode(contrasena))
+                            .rol("SUPER_ADMIN")
                             .activo(true).fechaCreacion(LocalDateTime.now()).build(),
                     Administrador.builder()
                             .nombre("Dr. Jorge").apellido("Reyes Montoya")
                             .usuario("j.reyes").correo("j.reyes@pharma911.com")
-                            .contrasena(passwordEncoder.encode("Admin123*!"))
+                            .contrasena(passwordEncoder.encode(contrasena))
+                            .rol("ADMIN_ACCESOS")
                             .activo(true).fechaCreacion(LocalDateTime.now()).build(),
                     Administrador.builder()
                             .nombre("Ing. Andrea").apellido("Sánchez")
                             .usuario("a.sanchez").correo("a.sanchez@pharma911.com")
-                            .contrasena(passwordEncoder.encode("Admin123*!"))
+                            .contrasena(passwordEncoder.encode(contrasena))
+                            .rol("ADMIN_SISTEMAS")
                             .activo(true).fechaCreacion(LocalDateTime.now()).build()
             );
             administradorRepository.saveAll(admins);
@@ -132,5 +141,25 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         log.info("Base de datos ROOM911 inicializada y sincronizada.");
+    }
+
+    /**
+     * La contraseña inicial de los usuarios sembrados llega por la variable
+     * ROOM911_SEED_PASSWORD; si no se define, se genera una aleatoria y se
+     * registra una única vez en el log para que el operador la recupere.
+     */
+    private String resolverContrasenaInicial() {
+        if (seedPassword != null && !seedPassword.isBlank()) {
+            return seedPassword;
+        }
+        String alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!#%*";
+        SecureRandom random = new SecureRandom();
+        StringBuilder generada = new StringBuilder(16);
+        for (int i = 0; i < 16; i++) {
+            generada.append(alfabeto.charAt(random.nextInt(alfabeto.length())));
+        }
+        log.warn("ROOM911_SEED_PASSWORD no definida. Contraseña inicial generada para usuarios sembrados: {}",
+                generada);
+        return generada.toString();
     }
 }

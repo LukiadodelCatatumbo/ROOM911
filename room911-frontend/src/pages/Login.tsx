@@ -5,8 +5,8 @@ import { authService } from "../services/authService";
 import { toast } from "sonner";
 
 export default function Login() {
-  const [usuario, setUsuario] = useState("admin");
-  const [password, setPassword] = useState("admin123");
+  const [usuario, setUsuario] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -28,7 +28,12 @@ export default function Login() {
       });
       navigate("/dashboard");
     } catch (err: any) {
-      setError("Credenciales incorrectas o servidor no disponible. Use demo: admin / admin123");
+      const detalle = err?.response?.data?.mensaje;
+      setError(
+        typeof detalle === "string" && detalle
+          ? detalle
+          : "Credenciales incorrectas o servidor no disponible."
+      );
       toast.error("Error al iniciar sesión", {
         description: "Verifique sus credenciales de acceso.",
       });
@@ -160,14 +165,7 @@ export default function Login() {
           </div>
 
           <div className="mt-4 p-3 bg-muted/60 border border-border rounded-md text-xs text-muted-foreground text-center">
-            <p className="font-medium text-foreground mb-0.5">Credenciales demo preconfiguradas:</p>
-            <span className="font-mono bg-white dark:bg-secondary px-1.5 py-0.5 rounded-xs text-foreground border border-border text-[11px]">
-              admin
-            </span>
-            {" "} / {" "}
-            <span className="font-mono bg-white dark:bg-secondary px-1.5 py-0.5 rounded-xs text-foreground border border-border text-[11px]">
-              admin123
-            </span>
+            <p>Acceso monitoreado bajo norma ISO 27001. Toda actividad queda registrada en auditoría.</p>
           </div>
         </div>
       </div>

@@ -22,8 +22,20 @@ public class Departamento {
     @Column (nullable = false, unique = true, length = 100)
     private String nombre;
 
+    @Column(length = 20)
+    private String codigo;
+
     @Column(length = 255)
     private String descripcion;
+
+    @Column(length = 100)
+    private String responsable;
+
+    @Column(name = "nivel_restriccion", length = 20)
+    private String nivelRestriccion;
+
+    @Column(name = "capacidad_maxima")
+    private Integer capacidadMaxima;
 
     @Builder.Default
     @Column(nullable = false)

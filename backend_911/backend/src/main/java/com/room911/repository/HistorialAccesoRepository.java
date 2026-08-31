@@ -13,4 +13,9 @@ public interface HistorialAccesoRepository  extends JpaRepository<HistorialAcces
      * Permite consultar el historial de un empleado
      */
     List<HistorialAcceso> findByEmpleadoId(Long empleadoId);
+
+    /**
+     * Personas dentro de la planta: ingresos sin salida registrada
+     */
+    long countByFechaSalidaIsNull();
 }

@@ -1,63 +1,60 @@
-import api, { API_BASE_URL } from "./api";
-import axios from "axios";
-import { AdminUser } from "../types";
+import api from "./api";
+import { AdminRole, AdminUser } from "../types";
 
-export interface LoginResponse {
+/** Contrato exacto de LoginResponseDTO del backend (POST /api/auth/login). */
+interface LoginResponseBackend {
+  loginCorrecto: boolean;
+  mensaje: string;
   token: string;
-  usuario?: string;
-  email?: string;
-  rol?: string;
-  nombre?: string;
+  username: string;
+  nombre: string;
+  correo: string;
+  rol: AdminRole | string;
 }
 
+const TOKEN_KEY = "token";
+const USER_KEY = "user";
+
 export const authService = {
-  async login(usuario: string, clave: string): Promise<LoginResponse> {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/admin/login`, {
-        username: usuario,
-        password: clave,
-      });
-      const data = response.data;
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data));
-      }
-      return data;
-    } catch (error) {
-      // Demo fallback login if backend is not running
-      if (usuario === "admin" && clave === "admin123") {
-        const mockResponse: LoginResponse = {
-          token: "mock-jwt-token-room911",
-          usuario: "admin",
-          nombre: "Dr. Jorge Reyes Montoya",
-          email: "j.reyes@pharma911.com",
-          rol: "SUPER_ADMIN",
-        };
-        localStorage.setItem("token", mockResponse.token);
-        localStorage.setItem("user", JSON.stringify(mockResponse));
-        return mockResponse;
-      }
-      throw error;
+  async login(usuario: string, clave: string): Promise<LoginResponseBackend> {
+    const { data } = await api.post<LoginResponseBackend>("/auth/login", {
+      username: usuario,
+      password: clave,
+    });
+    if (data.token) {
+      localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(
+        USER_KEY,
+        JSON.stringify({
+          username: data.username,
+          nombre: data.nombre,
+          correo: data.correo,
+          rol: data.rol,
+        })
+      );
     }
+    return data;
   },
 
   logout(): void {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
   },
 
   getCurrentUser(): AdminUser | null {
-    const userStr = localStorage.getItem("user");
+    const userStr = localStorage.getItem(USER_KEY);
     if (!userStr) return null;
     try {
       const parsed = JSON.parse(userStr);
+      if (!parsed.username && !parsed.nombre) return null;
       return {
-        id: parsed.id || "ADM-001",
-        username: parsed.usuario || parsed.username || "admin",
-        nombre: parsed.nombre || "Dr. Jorge Reyes Montoya",
-        email: parsed.email || "j.reyes@pharma911.com",
-        rol: (parsed.rol as any) || "SUPER_ADMIN",
-        ultimoAcceso: "Hoy, " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        id: parsed.username || "",
+        username: parsed.username,
+        nombre: parsed.nombre || parsed.username || "Usuario",
+        email: parsed.correo || parsed.email || "",
+        rol: parsed.rol,
+        ultimoAcceso: parsed.ultimoAcceso,
+        activo: true,
       };
     } catch {
       return null;
@@ -69,6 +66,22 @@ export const authService = {
   },
 
   isAuthenticated(): boolean {
-    return !!localStorage.getItem("token");
+    return !!localStorage.getItem(TOKEN_KEY);
+  },
+
+  /** SUPER_ADMIN y ADMIN_ACCESOS pueden escribir en personal/zonas (coincide con los @PreAuthorize del backend). */
+  puedeGestionarPersonal(): boolean {
+    const rol = this.getUser()?.rol;
+    return rol === "SUPER_ADMIN" || rol === "ADMIN_ACCESOS";
+  },
+
+  /** SUPER_ADMIN y ADMIN_SISTEMAS gestionan cuentas de administradores. */
+  puedeGestionarAdministradores(): boolean {
+    const rol = this.getUser()?.rol;
+    return rol === "SUPER_ADMIN" || rol === "ADMIN_SISTEMAS";
+  },
+
+  esSuperAdmin(): boolean {
+    return this.getUser()?.rol === "SUPER_ADMIN";
   },
 };

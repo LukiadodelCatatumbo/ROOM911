@@ -87,5 +87,3 @@ export interface DashboardStats {
   departamentosData: { name: string; value: number; percentage: number; color: string }[];
   ultimosAccesos: AccessEvent[];
 }
-
-export type DashboardSummary = DashboardStats | any;
