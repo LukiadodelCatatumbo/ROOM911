@@ -210,3 +210,8 @@
 
 #### Deuda conocida (no bloqueante):
 * `SimuladorAcceso.tsx` decide el resultado en el cliente y luego registra en el backend (la autorización real vive en `/api/acceso`); `CredencialDigital` usa la ruta demo `/credencial/EMP-0042`.
+
+#### Adenda (2026-08-31, gestión de BD de desarrollo):
+* Detectados dos PostgreSQL en el entorno: el contenedor Docker de compose (BD real de la app) y un clúster nativo en el host ocupando `localhost:5432` con datos obsoletos (tablas `admin_users`, `credenciales`, 9 departamentos viejos), que inducía a error al inspeccionar con pgAdmin.
+* `docker-compose.yml` vuelve a publicar la BD del contenedor **solo en `127.0.0.1`** (puerto `DB_HOST_PORT`, por defecto 5432) para administrarla con pgAdmin/DBeaver; a diferencia del revertido, el bind queda restringido a localhost y es ajustable por `.env` si el puerto está ocupado.
+* El clúster nativo debe deshabilitarse en el host (`sudo systemctl disable --now postgresql@16-main postgresql@18-main`) para liberar el 5432; el contenido viejo queda fuera de servicio junto con el servicio.

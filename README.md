@@ -22,7 +22,7 @@ La primera ejecución construye las imágenes, crea PostgreSQL e inicializa los 
 
 - **Interfaz web:** http://localhost:5173
 - **API REST:** http://localhost:8080/api
-- **PostgreSQL:** disponible dentro de la red Docker (sin publicar puertos en el host)
+- **PostgreSQL:** accesible solo desde `localhost:5432` (usuario/contraseña según `.env`) para administrarla con pgAdmin/DBeaver; no queda expuesta a la red externa. Si el host ya ocupa el 5432, define `DB_HOST_PORT` en `.env`.
 
 Comandos útiles:
 

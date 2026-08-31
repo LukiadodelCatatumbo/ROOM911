@@ -8,6 +8,10 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_password}
     volumes:
       - room911_db_data:/var/lib/postgresql/data
+    ports:
+      # Publica la BD solo en localhost para administrarla con pgAdmin/DBeaver.
+      # Si el host ya ocupa 5432 (postgres nativo), define DB_HOST_PORT en .env.
+      - "127.0.0.1:${DB_HOST_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-reto_room_911}"]
       interval: 10s
