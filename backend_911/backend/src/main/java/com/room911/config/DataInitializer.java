@@ -33,6 +33,9 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${room911.seed-password:}")
     private String seedPassword;
 
+    @Value("${room911.sync-seed-password:false}")
+    private boolean syncSeedPassword;
+
     @Override
     public void run(String... args) {
         log.info("Verificando inicialización de datos base para ROOM911...");
@@ -78,6 +81,8 @@ public class DataInitializer implements CommandLineRunner {
             );
             administradorRepository.saveAll(admins);
             log.info("Administradores sembrados exitosamente ({} creados).", admins.size());
+        } else if (syncSeedPassword && seedPassword != null && !seedPassword.isBlank()) {
+            sincronizarContrasenaSemilla();
         }
 
         // 3. Empleados
@@ -161,5 +166,27 @@ public class DataInitializer implements CommandLineRunner {
         log.warn("ROOM911_SEED_PASSWORD no definida. Contraseña inicial generada para usuarios sembrados: {}",
                 generada);
         return generada.toString();
+    }
+
+    /**
+     * Permite actualizar explícitamente las cuentas existentes en un entorno local
+     * cuando cambia ROOM911_SEED_PASSWORD. Nunca se ejecuta por defecto.
+     */
+    private void sincronizarContrasenaSemilla() {
+        List<Administrador> administradores = administradorRepository.findAll();
+        int actualizados = 0;
+
+        for (Administrador administrador : administradores) {
+            String hashActual = administrador.getContrasena();
+            if (hashActual == null || !passwordEncoder.matches(seedPassword, hashActual)) {
+                administrador.setContrasena(passwordEncoder.encode(seedPassword));
+                actualizados++;
+            }
+        }
+
+        if (actualizados > 0) {
+            administradorRepository.saveAll(administradores);
+            log.warn("Se sincronizó la contraseña semilla en {} administrador(es) por configuración explícita de desarrollo.", actualizados);
+        }
     }
 }

@@ -80,7 +80,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-xl font-bold text-foreground">Panel Operativo de Planta</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Monitoreo en tiempo real de aforo, credenciales activas y control de acceso biométrico BPF.
+            Monitoreo en tiempo real de aforo, credenciales activas y control de acceso.
           </p>
         </div>
         <div className="flex items-center gap-2">

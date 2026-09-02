@@ -28,13 +28,12 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
     const esLogin = error.config?.url?.includes("/auth/login");
-    if (status === 401 && !esLogin) {
-      // Sesión expirada o token inválido: limpiar y volver al login
+    const pathname = window.location.pathname;
+    const esRutaPublica = pathname === "/login" || pathname === "/simulador" || pathname === "/simulador-acceso" || pathname.startsWith("/credencial/") || pathname.startsWith("/activar-credencial/");
+    if (status === 401 && !esLogin && !esRutaPublica) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
-      }
+      window.location.replace("/login");
     }
     return Promise.reject(error);
   }

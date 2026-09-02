@@ -37,6 +37,7 @@ services:
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-28800000}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
       ROOM911_SEED_PASSWORD: ${ROOM911_SEED_PASSWORD:-}
+      ROOM911_SYNC_SEED_PASSWORD: ${ROOM911_SYNC_SEED_PASSWORD:-false}
     depends_on:
       db:
         condition: service_healthy
@@ -49,6 +50,10 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_DEMO_USERNAME: ${VITE_DEMO_USERNAME:-}
+        VITE_DEMO_PASSWORD: ${VITE_DEMO_PASSWORD:-}
+        VITE_SESSION_TIMEOUT_MINUTES: ${VITE_SESSION_TIMEOUT_MINUTES:-15}
+        VITE_SESSION_WARNING_MINUTES: ${VITE_SESSION_WARNING_MINUTES:-1}
     restart: unless-stopped
     depends_on:
       - backend

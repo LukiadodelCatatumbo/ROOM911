@@ -6,7 +6,9 @@ interface PaginationProps {
   totalItems: number;
   itemsPerPage: number;
   onPageChange: (page: number) => void;
+  onItemsPerPageChange?: (itemsPerPage: number) => void;
   itemName?: string;
+  itemsPerPageOptions?: number[];
 }
 
 export function Pagination({
@@ -15,7 +17,9 @@ export function Pagination({
   totalItems,
   itemsPerPage,
   onPageChange,
+  onItemsPerPageChange,
   itemName = "registros",
+  itemsPerPageOptions = [10, 50, 100],
 }: PaginationProps) {
   if (totalItems === 0) return null;
 
@@ -24,9 +28,27 @@ export function Pagination({
 
   return (
     <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-white dark:bg-card text-xs">
-      <span className="text-muted-foreground font-mono">
-        {start}–{end} de {totalItems} {itemName}
-      </span>
+      <div className="flex items-center gap-3">
+        <span className="text-muted-foreground font-mono">
+          {start}–{end} de {totalItems} {itemName}
+        </span>
+        {onItemsPerPageChange && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Mostrar</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+              className="px-2 py-1 bg-background border border-border rounded-md text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+            >
+              {itemsPerPageOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
       <div className="flex items-center gap-1.5">
         <button
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}

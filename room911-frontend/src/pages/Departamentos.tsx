@@ -12,12 +12,14 @@ import {
   RefreshCw,
   PowerOff,
   Power,
+  Search,
 } from "lucide-react";
 import { departamentoService } from "../services/departamentoService";
 import { authService } from "../services/authService";
 import { Department } from "../types";
 import { RestrictionBadge } from "../components/common/Badge";
 import { ConfirmDialog } from "../components/common/ConfirmDialog";
+import { Pagination } from "../components/common/Pagination";
 import { toast } from "sonner";
 
 interface DeptErrors {
@@ -31,6 +33,11 @@ interface DeptErrors {
 export default function Departamentos() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Drawer Form State
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -66,7 +73,7 @@ export default function Departamentos() {
       setDepartments(data);
       if (showToast) {
         toast.success("Áreas y departamentos actualizados", {
-          description: "Catálogo de zonas BPF sincronizado.",
+          description: "Catálogo de zonas operativas sincronizado.",
         });
       }
     } catch (err: any) {
@@ -83,6 +90,23 @@ export default function Departamentos() {
   useEffect(() => {
     loadDepartments();
   }, []);
+
+  const filteredDepartments = departments.filter((dept) => {
+    const q = search.toLowerCase();
+    return (
+      (dept.nombre || "").toLowerCase().includes(q) ||
+      (dept.codigo || "").toLowerCase().includes(q) ||
+      (dept.descripcion || "").toLowerCase().includes(q) ||
+      (dept.responsable || "").toLowerCase().includes(q) ||
+      (dept.nivelRestriccion || "").toLowerCase().includes(q)
+    );
+  });
+
+  const totalPages = Math.ceil(filteredDepartments.length / itemsPerPage);
+  const paginatedDepartments = filteredDepartments.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -221,7 +245,7 @@ export default function Departamentos() {
         <div>
           <h1 className="text-xl font-bold text-foreground">Áreas y Departamentos Farmacéuticos</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {departments.length} zonas operativas configuradas bajo clasificación de riesgo biológico BPF.
+            {departments.length} zonas operativas configuradas bajo clasificación de riesgo.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -246,19 +270,42 @@ export default function Departamentos() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="bg-white dark:bg-card p-4 rounded-lg border border-border shadow-2xs">
+        <div className="relative">
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+          />
+          <input
+            type="text"
+            placeholder="Buscar por nombre, código, descripción, responsable o nivel de restricción..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full pl-9 pr-3 py-1.5 bg-background border border-border rounded-md text-xs placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+          />
+        </div>
+      </div>
+
       {/* Grid of Department Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {!loading && departments.length === 0 && (
+        {!loading && filteredDepartments.length === 0 && (
           <div className="md:col-span-2 lg:col-span-3 bg-white dark:bg-card border border-dashed border-border rounded-lg p-12 flex flex-col items-center justify-center gap-2 text-center">
             <Building2 size={28} className="text-muted-foreground/50" />
-            <p className="text-sm font-semibold text-foreground">No hay áreas registradas</p>
+            <p className="text-sm font-semibold text-foreground">
+              {search ? "No se encontraron áreas que coincidan con la búsqueda" : "No hay áreas registradas"}
+            </p>
             <p className="text-xs text-muted-foreground max-w-sm">
-              Aún no se han configurado zonas operativas. Registre la primera área para
-              comenzar a asignar personal y controlar accesos BPF.
+              {search
+                ? "Intente con otros términos de búsqueda."
+                : "Aún no se han configurado zonas operativas. Registre la primera área para comenzar a asignar personal y controlar accesos."}
             </p>
           </div>
         )}
-        {departments.map((dept) => (
+        {paginatedDepartments.map((dept) => (
           <div
             key={dept.id}
             className={`bg-white dark:bg-card border rounded-lg p-5 shadow-2xs flex flex-col justify-between transition-all ${
@@ -325,6 +372,20 @@ export default function Departamentos() {
         ))}
       </div>
 
+      {/* Pagination */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredDepartments.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={(newSize) => {
+          setItemsPerPage(newSize);
+          setCurrentPage(1);
+        }}
+        itemName="áreas"
+      />
+
       {/* Form Drawer (Create / Edit Department) */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
@@ -344,7 +405,7 @@ export default function Departamentos() {
                   <h2 className="text-sm font-bold text-foreground">
                     {editingDept ? "Editar Área Farmacéutica" : "Registrar Nueva Área"}
                   </h2>
-                  <p className="text-[11px] text-muted-foreground">Configuración de Zonas BPF</p>
+                  <p className="text-[11px] text-muted-foreground">Configuración de Zonas</p>
                 </div>
               </div>
               <button
@@ -438,7 +499,7 @@ export default function Departamentos() {
               {/* Responsable */}
               <div>
                 <label className="block font-semibold text-foreground mb-1">
-                  Responsable Técnico BPF <span className="text-destructive">*</span>
+                  Responsable Técnico <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text"
@@ -539,7 +600,7 @@ export default function Departamentos() {
         }
         description={
           confirmDialog.dept?.activo !== false
-            ? `Al deshabilitar el área ${confirmDialog.dept?.nombre} (${confirmDialog.dept?.codigo || confirmDialog.dept?.id}), los lectores de torniquetes bloquearán nuevos ingresos a esta zona. Los registros históricos de auditoría se conservan intactos bajo norma BPF (nunca se borra de la base de datos).`
+            ? `Al deshabilitar el área ${confirmDialog.dept?.nombre} (${confirmDialog.dept?.codigo || confirmDialog.dept?.id}), los lectores de torniquetes bloquearán nuevos ingresos a esta zona. Los registros históricos de auditoría se conservan intactos (nunca se borra de la base de datos).`
             : `Al reactivar el área ${confirmDialog.dept?.nombre}, volverá a admitir personal con autorización asignada.`
         }
         confirmLabel={

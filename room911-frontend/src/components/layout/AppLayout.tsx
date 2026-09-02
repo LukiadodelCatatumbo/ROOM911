@@ -1,15 +1,10 @@
-import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
-import {
-  AccessibilityDrawer,
-  AccessibilityFloatingTrigger,
-} from "../common/AccessibilityDrawer";
-import { ShieldCheck, Eye } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import { SessionTimeout } from "../common/SessionTimeout";
 
 export function AppLayout() {
   const location = useLocation();
-  const [isAccessibilityOpen, setIsAccessibilityOpen] = useState(false);
 
   const getBreadcrumb = () => {
     const path = location.pathname;
@@ -24,9 +19,7 @@ export function AppLayout() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
-      {/* Persistent Left Floating Tab Trigger for Accessibility */}
-      <AccessibilityFloatingTrigger onClick={() => setIsAccessibilityOpen(true)} />
-
+      <SessionTimeout />
       {/* Main Sidebar */}
       <Sidebar />
 
@@ -54,12 +47,6 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
-
-      {/* Left Slider Accessibility Drawer */}
-      <AccessibilityDrawer
-        isOpen={isAccessibilityOpen}
-        onClose={() => setIsAccessibilityOpen(false)}
-      />
     </div>
   );
 }

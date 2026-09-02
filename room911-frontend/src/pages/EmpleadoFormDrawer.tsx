@@ -119,12 +119,10 @@ export default function EmpleadoFormDrawer({
     // Cédula / Documento
     if (!cedula.trim()) {
       newErrors.cedula = "El número de cédula/documento es obligatorio.";
-    } else if (cedula.trim().length < 6) {
-      newErrors.cedula = "El documento debe tener al menos 6 dígitos.";
-    } else if (cedula.trim().length > 15) {
-      newErrors.cedula = "El documento no puede exceder 15 caracteres.";
     } else if (!numberRegex.test(cedula.trim())) {
       newErrors.cedula = "La cédula solo debe contener números (sin puntos ni guiones).";
+    } else if (cedula.trim().length !== 10) {
+      newErrors.cedula = "La cédula colombiana debe tener exactamente 10 dígitos.";
     }
 
     // Email
@@ -204,13 +202,13 @@ export default function EmpleadoFormDrawer({
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in"
+        className="fixed inset-0 bg-black/40 transition-opacity duration-150 ease-out animate-in fade-in motion-reduce:animate-none"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Slide-over Right Panel */}
-      <div className="relative w-full max-w-md bg-card text-card-foreground shadow-2xl h-full flex flex-col border-l border-border z-10 animate-in slide-in-from-right duration-200">
+      <div className="relative w-full max-w-md bg-card text-card-foreground shadow-2xl h-full flex flex-col border-l border-border z-10 transform-gpu will-change-transform animate-in slide-in-from-right duration-150 ease-out motion-reduce:animate-none">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
           <div className="flex items-center gap-2.5">
@@ -298,12 +296,12 @@ export default function EmpleadoFormDrawer({
             </label>
             <input
               type="text"
-              maxLength={15}
-              placeholder="Solo números, ej. 1020304050"
+              inputMode="numeric"
+              maxLength={10}
+              placeholder="10 dígitos, ej. 1020304050"
               value={cedula}
               onChange={(e) => {
-                // Only allow numbers
-                const val = e.target.value.replace(/\D/g, "");
+                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
                 setCedula(val);
                 if (errors.cedula) setErrors({ ...errors, cedula: undefined });
               }}

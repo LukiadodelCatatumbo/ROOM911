@@ -3,6 +3,7 @@ package com.room911.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,6 +22,7 @@ public class EmpleadoDTO {
     private String apellido;
 
     @NotBlank(message = "El documento es obligatorio")
+    @Pattern(regexp = "\\d{10}", message = "La cédula colombiana debe tener exactamente 10 dígitos")
     private String documento;
 
     @Email(message = "Correo invalido")

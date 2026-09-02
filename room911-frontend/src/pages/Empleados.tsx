@@ -21,6 +21,7 @@ import { AccessBadge } from "../components/common/Badge";
 import { QRModal } from "../components/common/QRModal";
 import { Pagination } from "../components/common/Pagination";
 import { ConfirmDialog } from "../components/common/ConfirmDialog";
+import { ThemeToggle } from "../components/common/ThemeToggle";
 import EmpleadoFormDrawer from "./EmpleadoFormDrawer";
 import EmpleadoCsvDrawer from "./EmpleadoCsvDrawer";
 import { toast } from "sonner";
@@ -34,7 +35,7 @@ export default function Empleados() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Drawers and Modals
   const [formDrawerOpen, setFormDrawerOpen] = useState(false);
@@ -90,7 +91,10 @@ export default function Empleados() {
       emp.nombre.toLowerCase().includes(search.toLowerCase()) ||
       emp.apellido.toLowerCase().includes(search.toLowerCase()) ||
       emp.id.toLowerCase().includes(search.toLowerCase()) ||
-      (emp.cedula && emp.cedula.includes(search));
+      (emp.cedula && emp.cedula.includes(search)) ||
+      emp.cargo.toLowerCase().includes(search.toLowerCase()) ||
+      (emp.email && emp.email.toLowerCase().includes(search.toLowerCase())) ||
+      emp.departamento.toLowerCase().includes(search.toLowerCase());
 
     const matchesDept =
       selectedDept === "ALL" || emp.departamento === selectedDept;
@@ -141,12 +145,12 @@ export default function Empleados() {
         )
       );
       setConfirmDialogState({ isOpen: false, employee: null });
-      toast.success(
-        newStatus ? "Permiso reactivado" : "Registro deshabilitado (Soft Delete)",
-        {
-          description: `El estado de ${emp.nombre} ${emp.apellido} se actualizó manteniendo su trazabilidad BPF.`,
-        }
-      );
+        toast.success(
+          newStatus ? "Permiso reactivado" : "Registro deshabilitado (Soft Delete)",
+          {
+            description: `El estado de ${emp.nombre} ${emp.apellido} se actualizó manteniendo su trazabilidad.`,
+          }
+        );
     } catch {
       toast.error("No se pudo actualizar el estado del empleado.");
     }
@@ -163,13 +167,14 @@ export default function Empleados() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           {puedeEscribir && (
             <button
               onClick={() => setCsvDrawerOpen(true)}
               className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-secondary border border-border hover:bg-muted text-foreground text-xs font-semibold rounded-md shadow-2xs transition-colors"
             >
               <Upload size={14} />
-              <span>Carga Masiva (CSV)</span>
+              <span>Carga Masiva (Empleados)</span>
             </button>
           )}
           {puedeEscribir && (
@@ -350,6 +355,10 @@ export default function Empleados() {
           totalItems={filteredEmployees.length}
           itemsPerPage={itemsPerPage}
           onPageChange={setCurrentPage}
+          onItemsPerPageChange={(newSize) => {
+            setItemsPerPage(newSize);
+            setCurrentPage(1);
+          }}
           itemName="empleados"
         />
       </div>
@@ -389,7 +398,7 @@ export default function Empleados() {
         }
         description={
           (confirmDialogState.employee?.permisoAcceso ?? confirmDialogState.employee?.acceso ?? true)
-            ? `Al deshabilitar a ${confirmDialogState.employee?.nombre} ${confirmDialogState.employee?.apellido} (${confirmDialogState.employee?.id}), se revocará su acceso en torniquetes. Sus datos históricos y trazabilidad permanecerán intactos bajo norma BPF (nunca se borra de la base de datos).`
+            ? `Al deshabilitar a ${confirmDialogState.employee?.nombre} ${confirmDialogState.employee?.apellido} (${confirmDialogState.employee?.id}), se revocará su acceso en torniquetes. Sus datos históricos y trazabilidad permanecerán intactos (nunca se borra de la base de datos).`
             : `Al reactivar a ${confirmDialogState.employee?.nombre} ${confirmDialogState.employee?.apellido} (${confirmDialogState.employee?.id}), se habilitará nuevamente su ingreso a instalaciones autorizadas.`
         }
         confirmLabel={

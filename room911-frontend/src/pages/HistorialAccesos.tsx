@@ -19,12 +19,20 @@ export default function HistorialAccesos() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [resultadoFilter, setResultadoFilter] = useState("ALL");
-  const [dateFrom, setDateFrom] = useState("2024-01-01");
-  const [dateTo, setDateTo] = useState("2024-12-31");
+  const [dateFrom, setDateFrom] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split("T")[0];
+  });
+  const [dateTo, setDateTo] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split("T")[0];
+  });
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const todayStr = new Date().toISOString().split("T")[0];
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -100,8 +108,8 @@ export default function HistorialAccesos() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    toast.success("Archivo CSV de Auditoría descargado", {
-      description: `${filteredLogs.length} registros exportados con trazabilidad BPF.`,
+    toast.success("Archivo Excel de Auditoría descargado", {
+      description: `${filteredLogs.length} registros exportados con trazabilidad.`,
     });
   };
 
@@ -152,7 +160,7 @@ export default function HistorialAccesos() {
         <body>
           <div class="header-box">
             <h1>ROOM_911 · Sistema de Control de Acceso Farmacéutico</h1>
-            <p><strong>Informe de Auditoría & Trazabilidad BPF / GAMP 5</strong></p>
+            <p><strong>Informe de Auditoría & Trazabilidad</strong></p>
             <p>Fecha de emisión: ${todayStr} | Total registros: ${filteredLogs.length}</p>
           </div>
           <table>
@@ -190,7 +198,7 @@ export default function HistorialAccesos() {
         <div>
           <h1 className="text-xl font-bold text-foreground">Registro Global de Auditoría & Intentos</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {logs.length} eventos históricos registrados bajo norma de inmutabilidad y trazabilidad BPF.
+            {logs.length} eventos históricos registrados bajo norma de inmutabilidad y trazabilidad.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -199,7 +207,7 @@ export default function HistorialAccesos() {
             className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-secondary border border-border hover:bg-muted text-foreground text-xs font-semibold rounded-md shadow-2xs transition-colors cursor-pointer"
           >
             <FileSpreadsheet size={14} className="text-emerald-600 dark:text-emerald-400" />
-            <span>Exportar CSV</span>
+            <span>Exportar Excel</span>
           </button>
           <button
             onClick={handleExportPDF}
@@ -261,6 +269,7 @@ export default function HistorialAccesos() {
             <input
               type="date"
               value={dateFrom}
+              max={todayStr}
               onChange={(e) => setDateFrom(e.target.value)}
               className="px-2 py-1 bg-background border border-border rounded-md text-xs text-foreground"
             />
@@ -268,6 +277,7 @@ export default function HistorialAccesos() {
             <input
               type="date"
               value={dateTo}
+              max={todayStr}
               onChange={(e) => setDateTo(e.target.value)}
               className="px-2 py-1 bg-background border border-border rounded-md text-xs text-foreground"
             />
@@ -323,6 +333,10 @@ export default function HistorialAccesos() {
           totalItems={filteredLogs.length}
           itemsPerPage={itemsPerPage}
           onPageChange={setCurrentPage}
+          onItemsPerPageChange={(newSize) => {
+            setItemsPerPage(newSize);
+            setCurrentPage(1);
+          }}
           itemName="eventos"
         />
       </div>

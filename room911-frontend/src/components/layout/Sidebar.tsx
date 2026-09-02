@@ -6,7 +6,6 @@ import {
   FileText,
   ShieldAlert,
   Smartphone,
-  ScanLine,
   Lock,
   LogOut,
 } from "lucide-react";
@@ -32,7 +31,6 @@ const menuItems = [
   {
     category: "TERMINALES Y MÓVIL",
     items: [
-      { label: "Simulador de Terminal", path: "/simulador", icon: ScanLine, roles: null },
       { label: "Credencial Móvil (Demo)", path: "/credencial/EMP-0042", icon: Smartphone, roles: null },
     ],
   },
@@ -52,10 +50,10 @@ export function Sidebar() {
     }))
     .filter((group) => group.items.length > 0);
 
-  const handleLogout = () => {
-    authService.logout();
-    window.location.href = "/login";
-  };
+const handleLogout = () => {
+  authService.logout();
+  window.location.replace("/login");
+};
 
   return (
     <aside
@@ -72,7 +70,7 @@ export function Sidebar() {
           <div>
             <span className="text-white font-bold text-sm font-mono tracking-wider">ROOM_911</span>
             <p className="text-[10px] text-[#64748B] uppercase tracking-widest font-semibold">
-              Control Farmacéutico BPF
+              Control de Acceso
             </p>
           </div>
         </div>
@@ -125,7 +123,13 @@ export function Sidebar() {
             {user?.nombre || user?.username || "Usuario"}
           </p>
           <p className="text-[11px] text-slate-400 truncate">
-            {user?.email || user?.rol || "—"}
+            {user?.rol === "SUPER_ADMIN"
+              ? "Super Administrador"
+              : user?.rol === "ADMIN_ACCESOS"
+              ? "Administrador de Accesos"
+              : user?.rol === "ADMIN_SISTEMAS"
+              ? "Administrador de Sistemas"
+              : user?.rol || "—"}
           </p>
         </div>
 

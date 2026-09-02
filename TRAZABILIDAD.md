@@ -215,3 +215,106 @@
 * Detectados dos PostgreSQL en el entorno: el contenedor Docker de compose (BD real de la app) y un clúster nativo en el host ocupando `localhost:5432` con datos obsoletos (tablas `admin_users`, `credenciales`, 9 departamentos viejos), que inducía a error al inspeccionar con pgAdmin.
 * `docker-compose.yml` vuelve a publicar la BD del contenedor **solo en `127.0.0.1`** (puerto `DB_HOST_PORT`, por defecto 5432) para administrarla con pgAdmin/DBeaver; a diferencia del revertido, el bind queda restringido a localhost y es ajustable por `.env` si el puerto está ocupado.
 * El clúster nativo debe deshabilitarse en el host (`sudo systemctl disable --now postgresql@16-main postgresql@18-main`) para liberar el 5432; el contenido viejo queda fuera de servicio junto con el servicio.
+
+---
+
+### 🔍 Fase 11: Auditoría Integral de Vistas y Plan de Acción Trazable
+* **Fecha:** 2026-08-31
+* **Objetivo:** Ejecutar auditoría exhaustiva sobre las 9 vistas del frontend y sus controladores Spring Boot para identificar funciones rotas, bloqueos por autenticación y formular el plan de acción trazable en [`HANDOFF_AUDITORIA_VISTAS.md`](./HANDOFF_AUDITORIA_VISTAS.md).
+
+#### Hallazgos y Diagnóstico Consolidado:
+1. **`/simulador` (`SimuladorAcceso.tsx` - Crítico):** Bloqueo por endpoints protegidos por JWT (`GET /api/empleados` y `/api/departamentos` devuelven 401 sin sesión). La lista vacía inhabilita el selector de colaboradores y el botón "Simular Lectura de Credencial QR" no responde. Falta además campo de entrada manual/código.
+2. **`/credencial/:codigoQr` (`CredencialDigital.tsx` - Alto):** Llamada a endpoint privado `/api/empleados/{id}` desde vista pública móvil provoca carga infinita en smartphones no autenticados.
+3. **`/historial` (`HistorialAccesos.tsx` - Medio):** Selectores de rango de fecha "Desde" y "Hasta" presentes visualmente pero desconectados del predicado de filtrado de registros.
+4. **`/dashboard` (`Dashboard.tsx` - Bajo):** Aforo con porcentaje estático ("63.8%") y tasa de éxito con fallback "94.2" al no registrar ingresos en el día.
+5. **Plan de Trabajo:** Documentado en [`HANDOFF_AUDITORIA_VISTAS.md`](./HANDOFF_AUDITORIA_VISTAS.md) estructurado en 4 fases priorizadas.
+
+#### Implementación y Reparación Fase 1 (Completada):
+* [`SimuladorAcceso.tsx`](./room911-frontend/src/pages/SimuladorAcceso.tsx):
+  - Implementada resiliencia con catálogo de terminal de contingencia para operar en modo público y autenticado.
+  - Agregado lector de código/cédula por teclado directo.
+  - Implementada **Regla Anti-Passback:** Bloqueo automático de re-ingreso si el colaborador ya cuenta con ingreso activo en planta (`DENEGADO — Violación Anti-Passback`), requiriendo registro de salida previo.
+  - Implementado **Selector de Sentido de Tránsito:** Alternador entre `Ingreso (Entrada)` y `Egreso (Salida)`, con liberación de presencia.
+  - Implementado **Valor Agregado (Control de Horario / Turnos y Hora Límite):** Verificación de ventana horaria permitida por colaborador (Turno Mañana, Tarde, Central, Administrativo) y modo de prueba con reloj simulado para validar bloqueos por hora límite excedida.
+  - Simulación conectada con `POST /api/acceso` y validación de reglas BPF de esclusas.
+* [`CredencialDigital.tsx`](./room911-frontend/src/pages/CredencialDigital.tsx): Implementada resolución tolerante de credencial pública móvil para evitar bloqueos por falta de token administrativo.
+* Verificación: `pnpm build` ✅ y `./mvnw test` (13/13 tests verdes) ✅.
+
+---
+
+### 📚 Fase 12: Revisión documental de HU-009 a HU-028 contra la aplicación real
+* **Fecha:** 2026-09-01
+* **Objetivo:** Corregir y ampliar las historias HU-009 a HU-028 del documento vigente [`Historias de Usuario Room_911_v2.md`](./Historias%20de%20Usuario%20Room_911_v2.md) con el mismo formato ampliado de HU-008: alcance, estado frente a la app, precondiciones, flujo principal, evidencias con archivos y líneas, 10+ criterios Dado/Cuando/Entonces, 12+ tareas verificables y reglas de negocio. Sin modificar código fuente.
+
+#### Cambios realizados:
+1. Se revisó la evidencia real del frontend (`Empleados.tsx`, `EmpleadoFormDrawer.tsx`, `EmpleadoDetalle.tsx`, `SimuladorAcceso.tsx`, `CredencialDigital.tsx`, `HistorialAccesos.tsx`, `Dashboard.tsx`, `SessionTimeout.tsx`, servicios y rutas) y del backend (controladores, servicios, entidades, repositorios, seguridad JWT y roles) antes de reescribir cada historia.
+2. **HU-009 (editar empleado)** — Parcial: formulario único con precarga y validaciones, PUT `/empleados/{id}` con revalidación de duplicados; brechas: sin confirmación al cambiar documento, sin auditoría automática, sin notificación, duplicados responden 400 y no 409.
+3. **HU-010 (autorizar acceso)** — Parcial: conmutador en ficha, acción con confirmación, persistencia y efecto real en `POST /api/acceso`; brechas: cambio de estado por GET+PUT completo, anti-passback solo en el navegador, sin auditoría ni notificación.
+4. **HU-11** — Duplicada de HU-010, documentada formalmente sin eliminarla ni renumerar; criterios y tareas orientados a la gestión de la duplicidad.
+5. **HU-012 (buscar)** — Parcial: búsqueda real en memoria sobre 7 campos con paginación y estado vacío; brechas: sin búsqueda en servidor (endpoints `/nombre` y `/apellido` sin uso), sin ordenamiento.
+6. **HU-013 (filtro por departamento)** — Parcial: filtro funcional combinable; brecha: las opciones se derivan de los empleados cargados y no del catálogo de departamentos (HU-003).
+7. **HU-014 (duplicados)** — Parcial: unicidad de documento y correo garantizada en servidor (entidad y servicios); brechas: sin prevalidación en cliente, importación responde texto fijo sin detalle, inconsistencia 400/409.
+8. **HU-015 (exportar)** — No cubierta: no existe exportación del directorio (solo QR individual e informe PDF por empleado).
+9. **HU-016** — Duplicada de HU-003, documentada sin eliminarla.
+10. **HU-17 (cambiar contraseña)** — No cubierta el auto-servicio; existe solo el cambio administrativo de la contraseña de terceros vía edición de administradores (BCrypt).
+11. **HU-18 (recuperar contraseña)** — No cubierta; absorbe el objetivo de la antigua HU-005 (eliminada en la v2) y queda pendiente de decisión.
+12. **HU-019 (estadísticas)** — Parcial: 4 endpoints reales de dashboard; brechas: sin filtro de fechas, serie semanal sin días vacíos, aforo fijo "63.8 %", tasa con respaldo "94.2", fallas de sensor forzadas a cero, datos sembrados por `DataInitializer`.
+13. **HU-20 (auditoría)** — Parcial (solo backend/manual): entidad, endpoints y servicio existen; **ningún flujo del backend escribe auditoría automáticamente** (ni logins, ni CRUD); la escritura exige `administradorId` del cliente; sin pantalla de consulta. Brecha crítica.
+14. **HU-21 (configuración)** — No cubierta: `Configuracion.java` es una clase vacía sin entidad, sin API ni pantalla; único parámetro ajustable por variable de entorno (tiempo de inactividad).
+15. **HU-22 (credencial digital)** — Parcial con brechas críticas: el backend no genera ni persiste `codigoQr` (el QR es el documento/identificador); la vista sin sesión cae a un catálogo local que muestra credenciales falsas "ACTIVAS" para cualquier código; el estado "ACTIVA" está fijo.
+16. **HU-023 (validar QR)** — Parcial: el servidor sí decide (existencia, cuenta activa, permiso) vía endpoints públicos `/api/acceso` y `/api/acceso/qr` con registro automático del intento; brecha: el simulador decide en el cliente y no usa el endpoint QR; reglas de passback/horario/zona solo en el navegador.
+17. **HU-024 (resultado de validación)** — Parcial: cinco estados visuales; brechas: resultado decidido en el cliente, "falla de sensor" solo simulable, errores de conexión ocultos.
+18. **HU-025 (estado del punto de acceso)** — Parcial (demo): puntos de control hardcodeados, indicador "en línea" decorativo, sin reloj, sin contador real de intentos, sin estado de API/BD/versión ni telemetría de sensores.
+19. **HU-026 (intentos de acceso)** — Parcial: registro automático real por validación (incluye intentos sin empleado asociado), consultas por API, informe PDF por empleado; brechas: filtros de fecha decorativos en `/historial`, puerta enviada por el cliente, intentos de demostración sembrados.
+20. **HU-027 (indicadores)** — Parcial: KPIs reales desde el servidor; mismas brechas de HU-019 (aforo fijo, tasa con respaldo, sensor forzado, carga sin error).
+21. **HU-28** — Duplicada de HU-001, documentada sin eliminarla.
+
+#### Reglas aplicadas:
+* Se conservó la numeración original de todas las historias, incluidos los códigos "HU-11", "HU-17" y "HU-18" tal como figuran en el documento; no se eliminó ninguna historia duplicada (HU-11, HU-016, HU-028).
+* No se crearon HU-005 ni HU-006; HU-18 se documentó como heredera del objetivo de la antigua HU-005.
+* Los criterios que contradicen la implementación se marcaron explícitamente como pendientes de implementación.
+* Cada criterio cubre, cuando corresponde: flujo exitoso, campos vacíos, datos inválidos, duplicados, registro inexistente, falta de permisos, error del backend, estado vacío, persistencia, auditoría y accesibilidad.
+* Evidencias numeradas de E-08 (HU-009) a E-27 (HU-28), continuando la serie de HU-008 (E-07).
+* HU-029 (exportar historial en PDF) queda fuera del alcance de esta fase y mantiene su formato original.
+
+#### Pendiente:
+* Confirmar la consolidación de las duplicadas HU-11, HU-016 y HU-028 con el responsable de producto.
+* Decidir el alcance aprobado de las historias no cubiertas: HU-015 (exportar), HU-17 (cambio de contraseña propio), HU-18 (recuperación) y HU-21 (catálogo de parámetros).
+* Priorizar las brechas críticas documentadas: auditoría automática (HU-20), credenciales falsas en la vista pública (HU-22) y decisión de acceso en el cliente (HU-023).
+
+---
+
+### 🧹 Fase 13: Eliminación de historias duplicadas aprobada por el responsable de producto
+* **Fecha:** 2026-09-01
+* **Objetivo:** Depurar el backlog de [`Historias de Usuario Room_911_v2.md`](./Historias%20de%20Usuario%20Room_911_v2.md) eliminando las historias duplicadas, conservando siempre la historia canónica de cada capacidad, a solicitud del responsable de producto.
+
+#### Cambios realizados:
+1. **HU-11 eliminada** — duplicaba a HU-010 (autorizar acceso al ROOM_911). La historia canónica y verificada es HU-010.
+2. **HU-016 eliminada** — duplicaba a HU-003 (gestión de departamentos). La historia canónica y verificada es HU-003.
+3. **HU-28 eliminada** — duplicaba a HU-001 (autenticación). La historia canónica y verificada es HU-001.
+4. **HU-18 eliminada** — heredaba el objetivo de la antigua HU-005 (recuperación de contraseña), retirada en la versión 2 por no estar implementada y por la extensión del proceso (enlace seguro con expiración, canal de correo, restablecimiento). No existe en la aplicación ningún flujo de recuperación ni de restablecimiento, y el responsable de producto decidió no mantener la historia pendiente.
+5. **Referencias cruzadas corregidas:** HU-17 (cambio de contraseña) dejó de remitir a HU-18 y documenta el retiro del flujo de recuperación; HU-20 elimina el rango obsoleto "HU-001 a HU-019".
+6. **Numeración conservada:** no se renumeraron las historias restantes; los códigos vigentes son HU-001 a HU-004, HU-007, HU-008 a HU-010, HU-012 a HU-015, HU-017 y HU-019 a HU-027, más HU-029 (pendiente de revisión con el formato ampliado).
+7. No se modificó código fuente; los cambios son exclusivamente documentales.
+
+#### Pendiente:
+* Revisar y ampliar HU-029 (exportar historial de accesos en PDF) con el formato vigente.
+* Las historias no implementadas HU-015 (exportar listado), HU-017 (cambio de contraseña propio) y HU-21 (configuración) permanecen documentadas como "No cubierta" por requerimientos únicos no duplicados; su retiro o desarrollo queda a decisión del responsable de producto.
+
+---
+
+### 📚 Fase 14: Ajustes finales del backlog — HU-015 conservada, HU-17 eliminada, HU-021 redefinida y HU-029 ampliada
+* **Fecha:** 2026-09-01
+* **Objetivo:** Aplicar las decisiones del responsable de producto sobre el backlog de [`Historias de Usuario Room_911_v2.md`](./Historias%20de%20Usuario%20Room_911_v2.md).
+
+#### Cambios realizados:
+1. **HU-015 conservada** — exportar el listado de empleados sigue siendo un requerimiento único válido, documentado como "No cubierta" a la espera de decisión de alcance.
+2. **HU-17 eliminada** — el cambio de contraseña propio (auto-servicio) no está implementado y el responsable de producto decidió retirarla. El cambio administrativo de la contraseña de terceros sigue cubierto por HU-002. No quedan referencias rotas.
+3. **HU-021 redefinida** — dejó de ser "Configurar parámetros generales del sistema" (catálogo que no existe y no se planeó) y pasó a ser **"Cambiar el tema visual de la interfaz (claro/oscuro)"**, la única preferencia de interfaz incorporada. Evidencia real: `ThemeContext.tsx` (contexto con tema claro/oscuro, clase `dark` sobre el documento y preferencia en `localStorage`), `ThemeToggle.tsx` (control con `aria-pressed`), `index.css` (paletas), `App.tsx` (proveedor global). Estado: **Parcial** — el control solo está en el directorio de empleados, coexiste con el mecanismo propio del modal de accesibilidad (`AccessibilityModal.tsx`) y hay estilos fijos combinados con variables de tema.
+4. **HU-029 ampliada** — con el formato vigente: alcance, estado, precondiciones, flujo, evidencias E-28, 12 criterios, 12 tareas y reglas. Estado: **Parcial** — exportación CSV real del historial, PDF por impresión del navegador (sin fecha de generación ni respaldo del servidor) e informe PDF formal por empleado generado por `PdfServiceImpl` vía `/api/intento-acceso/pdf/{id}`.
+5. Con esto, **todas las historias vigentes del documento usan el formato ampliado**. Códigos vigentes: HU-001 a HU-004, HU-007 a HU-010, HU-012 a HU-015, HU-019 a HU-027 y HU-029 (22 historias). Numeración conservada, sin reasignación de códigos.
+6. No se modificó código fuente; los cambios son exclusivamente documentales.
+
+#### Pendiente:
+* Generalizar el control de tema a todas las pantallas y unificarlo con el modal de accesibilidad (tareas 5 y 6 de HU-021).
+* Reemplazar el PDF por impresión del navegador por un PDF del servidor con fecha de generación (tarea 2 de HU-029).
