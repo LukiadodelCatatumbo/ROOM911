@@ -26,7 +26,7 @@ git push origin main
 - Se incluyen también la eliminación de los archivos `Visitante*` (borrado que ya habías hecho) y las carpetas `carga_masiva/` y `Reto_room911.docx` (estaban sin trackear). Si **no** quieres subir el .docx o `carga_masiva/`, agrégalos a `.gitignore` antes del `git add -A`.
 - **`.env` NO se sube** (está en `.gitignore` a propósito: contiene credenciales). Tienes que llevarlo al otro equipo por otro medio (paso 2).
 
-Si GitHub pide autenticación al hacer push: usa GitHub CLI (`gh auth login`) o un *Personal Access Token* como contraseña de HTTPS.
+Si GitHub pide autenticación al hacer push: este equipo ya usa **SSH** (clave ed25519 `j107martinez@gmail.com`, remoto `git@github.com:LukiadodelCatatumbo/ROOM911.git`). En el nuevo equipo puedes copiar la clave privada `~/.ssh/id_ed25519` (y `id_ed25519.pub`) o generar una nueva con `ssh-keygen` y registrarla en GitHub → Settings → SSH and GPG keys. Alternativa: Personal Access Token con HTTPS.
 
 ---
 
