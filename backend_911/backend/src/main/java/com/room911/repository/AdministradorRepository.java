@@ -10,7 +10,9 @@ import java.util.Optional;
 public interface AdministradorRepository extends JpaRepository<Administrador, Long> {
     Optional<Administrador> findByUsuario(String usuario);
     Optional<Administrador> findByCorreo(String correo);
-    boolean existsByUsuario(String usuario);
-    boolean existsByCorreo(String correo);
+
+    // Unicidad solo entre filas activas (índices únicos parciales WHERE activo)
+    boolean existsByUsuarioAndActivoTrue(String usuario);
+    boolean existsByCorreoAndActivoTrue(String correo);
 }
 

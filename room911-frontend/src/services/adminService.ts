@@ -31,7 +31,7 @@ interface AdministradorPayload {
 const mapAdmin = (d: AdministradorBackend): AdminUser => ({
   id: String(d.id),
   dbId: d.id,
-  username: d.usuario,
+  usuario: d.usuario,
   nombre: [d.nombre, d.apellido].filter(Boolean).join(" "),
   email: d.correo,
   rol: d.rol as AdminRole,
@@ -70,7 +70,7 @@ export const adminService = {
       nombre,
       apellido,
       correo: admin.email || "",
-      usuario: admin.username || "",
+      usuario: admin.usuario || "",
       contrasena: admin.password || admin.contrasena,
       rol: admin.rol || "ADMIN_ACCESOS",
     };
@@ -92,7 +92,7 @@ export const adminService = {
       nombre,
       apellido,
       correo: admin.email || "",
-      usuario: admin.username || "",
+      usuario: admin.usuario || "",
       rol: admin.rol || "ADMIN_ACCESOS",
     };
     const nuevaContrasena = admin.password || admin.contrasena;

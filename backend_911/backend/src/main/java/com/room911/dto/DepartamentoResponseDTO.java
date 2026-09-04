@@ -15,7 +15,7 @@ public class DepartamentoResponseDTO {
     private String responsable;
     private String nivelRestriccion;
     private Integer capacidadMaxima;
-    private Long empleadosCount;
+    private Long cantidadEmpleados;
     private Boolean activo;
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;

@@ -9,6 +9,7 @@ interface PaginationProps {
   onItemsPerPageChange?: (itemsPerPage: number) => void;
   itemName?: string;
   itemsPerPageOptions?: number[];
+  showItemsPerPage?: boolean;
 }
 
 export function Pagination({
@@ -20,6 +21,7 @@ export function Pagination({
   onItemsPerPageChange,
   itemName = "registros",
   itemsPerPageOptions = [10, 50, 100],
+  showItemsPerPage = true,
 }: PaginationProps) {
   if (totalItems === 0) return null;
 
@@ -32,7 +34,7 @@ export function Pagination({
         <span className="text-muted-foreground font-mono">
           {start}–{end} de {totalItems} {itemName}
         </span>
-        {onItemsPerPageChange && (
+        {showItemsPerPage && onItemsPerPageChange && (
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">Mostrar</span>
             <select

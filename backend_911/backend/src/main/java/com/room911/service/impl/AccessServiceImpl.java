@@ -32,7 +32,7 @@ public class AccessServiceImpl implements AccessService {
 
         if (empleadoOpt.isEmpty()) {
 
-            guardarIntento(null, false, "Empleado no registrado (" + tokenOValor + ")");
+            guardarIntento(null, false, "Empleado no registrado (" + tokenOValor + ")", tokenOValor);
 
             return AccessResponseDTO.builder()
                     .permitido(false)
@@ -45,7 +45,7 @@ public class AccessServiceImpl implements AccessService {
 
         if (!empleado.getActivo()) {
 
-            guardarIntento(empleado, false, "Empleado inactivo");
+            guardarIntento(empleado, false, "Empleado inactivo", empleado.getDocumento());
 
             return construirRespuesta(
                     empleado,
@@ -56,7 +56,7 @@ public class AccessServiceImpl implements AccessService {
 
         if (!empleado.getAccesoPermitido()) {
 
-            guardarIntento(empleado, false, "Acceso no permitido");
+            guardarIntento(empleado, false, "Acceso no permitido", empleado.getDocumento());
 
             return construirRespuesta(
                     empleado,
@@ -68,7 +68,8 @@ public class AccessServiceImpl implements AccessService {
         guardarIntento(
                 empleado,
                 true,
-                "Acceso permitido, bienvenido"
+                "Acceso permitido, bienvenido",
+                empleado.getDocumento()
         );
 
         return construirRespuesta(
@@ -139,17 +140,20 @@ public class AccessServiceImpl implements AccessService {
     }
 
     /**
-     * Guarda un intento de acceso.
+     * Guarda un intento de acceso, conservando siempre la credencial leída
+     * (documento_intentado) aunque el empleado no esté registrado.
      */
     private void guardarIntento(
             Empleado empleado,
             Boolean exito,
-            String mensaje) {
+            String mensaje,
+            String documentoIntentado) {
 
         AccessAttempt intento = AccessAttempt.builder()
                 .fechaAcceso(LocalDateTime.now())
                 .exito(exito)
-                .message(mensaje)
+                .mensaje(mensaje)
+                .documentoIntentado(documentoIntentado)
                 .empleado(empleado)
                 .build();
 

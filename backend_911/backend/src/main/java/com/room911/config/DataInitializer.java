@@ -129,15 +129,15 @@ public class DataInitializer implements CommandLineRunner {
                 if (accessAttemptRepository.count() == 0) {
                     log.info("Sembrando registros de auditoría de acceso...");
                     List<AccessAttempt> attempts = List.of(
-                            AccessAttempt.builder().empleado(empleados.get(0)).exito(true).message("Acceso autorizado: Esclusa 1 Producción A").fechaAcceso(LocalDateTime.now().minusHours(4)).build(),
-                            AccessAttempt.builder().empleado(empleados.get(1)).exito(true).message("Acceso autorizado: Lector Biométrico Lab QC").fechaAcceso(LocalDateTime.now().minusHours(3)).build(),
-                            AccessAttempt.builder().empleado(empleados.get(5)).exito(false).message("Acceso denegado: Credencial inactiva en sistema").fechaAcceso(LocalDateTime.now().minusHours(2)).build(),
-                            AccessAttempt.builder().empleado(empleados.get(2)).exito(true).message("Acceso autorizado: Lab B-2 Bioequivalencia").fechaAcceso(LocalDateTime.now().minusHours(1)).build(),
-                            AccessAttempt.builder().empleado(empleados.get(3)).exito(true).message("Acceso autorizado: Torniquete Muelle de Carga").fechaAcceso(LocalDateTime.now().minusMinutes(45)).build(),
-                            AccessAttempt.builder().empleado(empleados.get(0)).exito(true).message("Acceso autorizado: Torniquete Entrada Principal").fechaAcceso(LocalDateTime.now().minusMinutes(20)).build(),
-                            AccessAttempt.builder().empleado(empleados.get(4)).exito(true).message("Acceso autorizado: Entrada Principal").fechaAcceso(LocalDateTime.now().minusDays(1)).build(),
-                            AccessAttempt.builder().empleado(empleados.get(1)).exito(true).message("Acceso autorizado: Lab QC").fechaAcceso(LocalDateTime.now().minusDays(2)).build(),
-                            AccessAttempt.builder().empleado(empleados.get(2)).exito(true).message("Acceso autorizado: Lab B-2").fechaAcceso(LocalDateTime.now().minusDays(3)).build()
+                            AccessAttempt.builder().empleado(empleados.get(0)).documentoIntentado(empleados.get(0).getDocumento()).exito(true).mensaje("Acceso autorizado: Esclusa 1 Producción A").fechaAcceso(LocalDateTime.now().minusHours(4)).build(),
+                            AccessAttempt.builder().empleado(empleados.get(1)).documentoIntentado(empleados.get(1).getDocumento()).exito(true).mensaje("Acceso autorizado: Lector Biométrico Lab QC").fechaAcceso(LocalDateTime.now().minusHours(3)).build(),
+                            AccessAttempt.builder().empleado(empleados.get(5)).documentoIntentado(empleados.get(5).getDocumento()).exito(false).mensaje("Acceso denegado: Credencial inactiva en sistema").fechaAcceso(LocalDateTime.now().minusHours(2)).build(),
+                            AccessAttempt.builder().empleado(empleados.get(2)).documentoIntentado(empleados.get(2).getDocumento()).exito(true).mensaje("Acceso autorizado: Lab B-2 Bioequivalencia").fechaAcceso(LocalDateTime.now().minusHours(1)).build(),
+                            AccessAttempt.builder().empleado(empleados.get(3)).documentoIntentado(empleados.get(3).getDocumento()).exito(true).mensaje("Acceso autorizado: Torniquete Muelle de Carga").fechaAcceso(LocalDateTime.now().minusMinutes(45)).build(),
+                            AccessAttempt.builder().empleado(empleados.get(0)).documentoIntentado(empleados.get(0).getDocumento()).exito(true).mensaje("Acceso autorizado: Torniquete Entrada Principal").fechaAcceso(LocalDateTime.now().minusMinutes(20)).build(),
+                            AccessAttempt.builder().empleado(empleados.get(4)).documentoIntentado(empleados.get(4).getDocumento()).exito(true).mensaje("Acceso autorizado: Entrada Principal").fechaAcceso(LocalDateTime.now().minusDays(1)).build(),
+                            AccessAttempt.builder().empleado(empleados.get(1)).documentoIntentado(empleados.get(1).getDocumento()).exito(true).mensaje("Acceso autorizado: Lab QC").fechaAcceso(LocalDateTime.now().minusDays(2)).build(),
+                            AccessAttempt.builder().empleado(empleados.get(2)).documentoIntentado(empleados.get(2).getDocumento()).exito(true).mensaje("Acceso autorizado: Lab B-2").fechaAcceso(LocalDateTime.now().minusDays(3)).build()
                     );
                     accessAttemptRepository.saveAll(attempts);
                     log.info("Historial de accesos sembrado exitosamente ({} registros).", attempts.size());

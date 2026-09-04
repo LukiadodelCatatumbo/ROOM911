@@ -120,7 +120,7 @@ const handleLogout = () => {
             <span className="w-2 h-2 rounded-full bg-emerald-500" title="En línea" />
           </div>
           <p className="text-xs font-semibold text-white mt-1 truncate">
-            {user?.nombre || user?.username || "Usuario"}
+            {user?.nombre || user?.usuario || "Usuario"}
           </p>
           <p className="text-[11px] text-slate-400 truncate">
             {user?.rol === "SUPER_ADMIN"
@@ -135,7 +135,7 @@ const handleLogout = () => {
 
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs text-slate-400 hover:text-destructive hover:bg-destructive/10 transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-xs font-semibold text-rose-300 bg-rose-500/10 border border-rose-400/30 hover:text-rose-100 hover:bg-rose-500/25 hover:border-rose-400/60 transition-colors"
           aria-label="Cerrar sesión"
         >
           <LogOut size={14} />

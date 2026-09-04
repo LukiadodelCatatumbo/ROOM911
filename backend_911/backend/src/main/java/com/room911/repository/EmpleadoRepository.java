@@ -12,9 +12,11 @@ import java.util.Optional;
 
 @Repository
 public interface EmpleadoRepository extends JpaRepository<Empleado, Long> {
-    boolean existsByDocumento(String documento);
     Optional<Empleado> findByDocumento(String documento);
-    boolean existsByCorreo(String correo);
+
+    // Unicidad solo entre filas activas (índices únicos parciales WHERE activo)
+    boolean existsByDocumentoAndActivoTrue(String documento);
+    boolean existsByCorreoAndActivoTrue(String correo);
 
     List<Empleado> findByActivoTrue();
 

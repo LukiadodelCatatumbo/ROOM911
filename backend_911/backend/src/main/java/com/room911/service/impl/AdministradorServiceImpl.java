@@ -29,11 +29,11 @@ public class AdministradorServiceImpl implements AdministradorService {
             throw new IllegalArgumentException("La contraseña es obligatoria");
         }
 
-        if (administradorRepository.existsByUsuario(dto.getUsuario())) {
+        if (administradorRepository.existsByUsuarioAndActivoTrue(dto.getUsuario())) {
             throw new RuntimeException("El usuario ya existe");
         }
 
-        if (administradorRepository.existsByCorreo(dto.getCorreo())) {
+        if (administradorRepository.existsByCorreoAndActivoTrue(dto.getCorreo())) {
             throw new RuntimeException("El correo ya existe");
         }
         Administrador administrador = Administrador.builder()

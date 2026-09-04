@@ -203,12 +203,12 @@ export default function SimuladorAcceso() {
 
   const [result, setResult] = useState<{
     status: "IDLE" | "SCANNING" | "CONCEDIDO" | "DENEGADO" | "ERROR_SENSOR";
-    message: string;
+    mensaje: string;
     employeeName?: string;
     details?: string;
   }>({
     status: "IDLE",
-    message: "Terminal lista para lectura de credencial.",
+    mensaje: "Terminal lista para lectura de credencial.",
   });
 
   // Physical Access Points linked to departments & restriction levels
@@ -368,7 +368,7 @@ export default function SimuladorAcceso() {
     setSimulating(true);
     setResult({
       status: "SCANNING",
-      message: "Procesando lectura de credencial QR...",
+      mensaje: "Procesando lectura de credencial QR...",
     });
 
     const now = new Date();
@@ -407,7 +407,7 @@ export default function SimuladorAcceso() {
       if (forceOutcome === "ERROR_SENSOR") {
         setResult({
           status: "ERROR_SENSOR",
-          message: "Falla de Lectura en Sensor Óptico",
+          mensaje: "Falla de Lectura en Sensor Óptico",
           details:
             "El código QR presenta distorsión óptica o baja reflectancia. Por favor reintente la lectura.",
         });
@@ -442,7 +442,7 @@ export default function SimuladorAcceso() {
         setResult({
           status: "DENEGADO",
           employeeName: empName,
-          message: "Error: acceso ya concedido",
+          mensaje: "Error: acceso ya concedido",
           details: `${duplicateAccessMessage} No se puede procesar otra solicitud para este colaborador.`,
         });
         toast.error("Error de acceso: el colaborador ya tiene un acceso concedido");
@@ -472,7 +472,7 @@ export default function SimuladorAcceso() {
         setResult({
           status: "DENEGADO",
           employeeName: empName,
-          message: "Acceso Bloqueado — Credencial Inactiva",
+          mensaje: "Acceso Bloqueado — Credencial Inactiva",
           details: `El colaborador ${targetEmp.id} tiene la credencial inhabilitada o revocada en el sistema.`,
         });
         toast.error("Acceso denegado: Credencial inactiva");
@@ -503,7 +503,7 @@ export default function SimuladorAcceso() {
         setResult({
           status: "DENEGADO",
           employeeName: empName,
-          message: "Acceso Bloqueado — Fuera de Horario / Turno Límite",
+          mensaje: "Acceso Bloqueado — Fuera de Horario / Turno Límite",
           details: `El punto de acceso tiene '${schedule.nombre}' (${schedule.horaInicio} a ${schedule.horaFin}). Hora evaluada: ${evaluatedHourMin}.`,
         });
         toast.error(
@@ -535,7 +535,7 @@ export default function SimuladorAcceso() {
         setResult({
           status: "DENEGADO",
           employeeName: empName,
-          message: "Acceso Bloqueado — Zona No Autorizada",
+          mensaje: "Acceso Bloqueado — Zona No Autorizada",
           details: `El colaborador pertenece a '${empDept}' y no tiene autorización para ${selectedAccessPoint.departamento}.`,
         });
         toast.error(
@@ -566,7 +566,7 @@ export default function SimuladorAcceso() {
       setResult({
         status: "CONCEDIDO",
         employeeName: empName,
-        message: "Acceso autorizado",
+        mensaje: "Acceso autorizado",
         details: isCommonZone
           ? `Acceso permitido a zona común: ${selectedAccessPoint.nombre}.`
           : `Acceso permitido para ${empDept}.`,
@@ -704,9 +704,9 @@ export default function SimuladorAcceso() {
               )}
             </div>
 
-            {/* Feedback message */}
+            {/* Mensaje de retroalimentación */}
             <div className="mt-3 min-h-[56px] w-full flex flex-col items-center justify-center">
-              <p className="font-semibold text-sm text-foreground">{result.message}</p>
+              <p className="font-semibold text-sm text-foreground">{result.mensaje}</p>
               {result.employeeName && (
                 <p className="text-xs text-primary font-bold mt-0.5">
                   {result.employeeName}

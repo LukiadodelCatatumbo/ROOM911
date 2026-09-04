@@ -329,7 +329,7 @@ export default function Departamentos() {
                 <div className="flex items-center justify-between text-muted-foreground">
                   <span>Personal Asignado:</span>
                   <span className="font-mono font-medium text-foreground">
-                    {dept.empleadosCount || dept.totalEmpleados || 0} colaboradores
+                    {dept.cantidadEmpleados || dept.totalEmpleados || 0} colaboradores
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-muted-foreground">

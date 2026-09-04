@@ -114,6 +114,47 @@ export default function Empleados() {
     currentPage * itemsPerPage
   );
 
+  // Exporta a CSV exactamente lo que se ve con los filtros aplicados
+  const handleExportCsv = () => {
+    if (filteredEmployees.length === 0) {
+      toast.warning("No hay empleados para exportar", {
+        description: "Ajusta los filtros de búsqueda e inténtalo de nuevo.",
+      });
+      return;
+    }
+    const escapar = (valor: string | number | boolean | undefined) => {
+      const texto = String(valor ?? "");
+      return /[",\n;]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
+    };
+    const cabecera = "codigo,nombre,apellido,documento,correo,cargo,departamento,acceso";
+    const filas = filteredEmployees.map((emp) =>
+      [
+        emp.id,
+        emp.nombre,
+        emp.apellido,
+        emp.cedula ?? emp.documentoIdentidad ?? "",
+        emp.email ?? "",
+        emp.cargo,
+        emp.departamento,
+        emp.permisoAcceso ?? emp.acceso ?? true ? "ACTIVO" : "INACTIVO",
+      ]
+        .map(escapar)
+        .join(",")
+    );
+    // BOM inicial para que Excel/LibreOffice respeten los acentos en UTF-8
+    const contenido = "\uFEFF" + [cabecera, ...filas].join("\n");
+    const blob = new Blob([contenido], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = `empleados_room911_${new Date().toISOString().slice(0, 10)}.csv`;
+    enlace.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Se exportaron ${filteredEmployees.length} empleados`, {
+      description: "El archivo CSV se descargó con los filtros actuales aplicados.",
+    });
+  };
+
   const handleOpenCreate = () => {
     setEditingEmployee(null);
     setFormDrawerOpen(true);
@@ -168,6 +209,14 @@ export default function Empleados() {
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-secondary border border-border hover:bg-muted text-foreground text-xs font-semibold rounded-md shadow-2xs transition-colors"
+            title="Descarga la lista de empleados (con los filtros actuales) en formato CSV"
+          >
+            <FileSpreadsheet size={14} />
+            <span>Exportar CSV</span>
+          </button>
           {puedeEscribir && (
             <button
               onClick={() => setCsvDrawerOpen(true)}
@@ -201,7 +250,26 @@ export default function Empleados() {
       {/* Main Table Card */}
       <div className="bg-white dark:bg-card border border-border rounded-lg shadow-2xs overflow-hidden">
         {/* Filters Bar */}
-        <div className="p-4 border-b border-border bg-muted/20 flex items-center justify-between gap-4 flex-wrap text-xs">
+        <div className="p-4 border-b border-border bg-muted/20 flex flex-col gap-3 text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Mostrar</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              aria-label="Empleados por página"
+              className="px-2 py-1 bg-background border border-border rounded-md text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+            >
+              {[10, 50, 100].map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+            <span className="text-muted-foreground">empleados por página</span>
+          </div>
           <div className="flex items-center gap-3 flex-1 min-w-[280px]">
             <div className="relative flex-1">
               <Search
@@ -359,6 +427,7 @@ export default function Empleados() {
             setItemsPerPage(newSize);
             setCurrentPage(1);
           }}
+          showItemsPerPage={false}
           itemName="empleados"
         />
       </div>

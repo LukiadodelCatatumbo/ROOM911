@@ -18,7 +18,7 @@ public class AccessAttemptMapper {
 
                 .exito(accessAttempt.getExito())
 
-                .message(accessAttempt.getMessage())
+                .mensaje(accessAttempt.getMensaje())
 
                 .empleadoId(
                         accessAttempt.getEmpleado() != null

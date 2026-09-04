@@ -30,12 +30,12 @@ public class AuthServiceImpl implements AuthService {
     public LoginResponseDTO login(LoginRequestDTO dto) {
 
         Administrador admin = administradorRepository
-                .findByUsuario(dto.getUsername())
+                .findByUsuario(dto.getUsuario())
                 .orElse(null);
 
         if (admin == null
                 || !Boolean.TRUE.equals(admin.getActivo())
-                || !passwordEncoder.matches(dto.getPassword(), admin.getContrasena())) {
+                || !passwordEncoder.matches(dto.getContrasena(), admin.getContrasena())) {
             throw new BadCredentialsException("Credenciales inválidas");
         }
 
@@ -45,7 +45,7 @@ public class AuthServiceImpl implements AuthService {
                 .loginCorrecto(true)
                 .mensaje("Inicio de sesión exitoso")
                 .token(token)
-                .username(admin.getUsuario())
+                .usuario(admin.getUsuario())
                 .nombre(admin.getNombre())
                 .correo(admin.getCorreo())
                 .rol(admin.getRol())

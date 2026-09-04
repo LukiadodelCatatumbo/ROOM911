@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
-import { Lock, ShieldCheck, User, CheckCircle2, Clock, Smartphone, AlertCircle } from "lucide-react";
+import { Lock, ShieldCheck, User, CheckCircle2, Clock, Smartphone, AlertCircle, ArrowLeft } from "lucide-react";
 import { empleadoService } from "../services/empleadoService";
 import { Employee } from "../types";
 
@@ -60,6 +60,7 @@ const KNOWN_CREDENTIALS: Record<string, Partial<Employee>> = {
 
 export default function CredencialDigital() {
   const { codigoQr } = useParams<{ codigoQr: string }>();
+  const navigate = useNavigate();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [time, setTime] = useState(new Date().toLocaleTimeString());
@@ -181,6 +182,16 @@ export default function CredencialDigital() {
           </div>
         </div>
       </div>
+
+      {/* Botón para regresar a la pantalla anterior */}
+      <button
+        onClick={() => navigate(-1)}
+        className="mt-6 flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/15 hover:bg-white/15 text-white text-xs font-semibold rounded-md transition-colors cursor-pointer"
+        aria-label="Volver a la pantalla anterior"
+      >
+        <ArrowLeft size={15} />
+        <span>Volver</span>
+      </button>
     </div>
   );
 }

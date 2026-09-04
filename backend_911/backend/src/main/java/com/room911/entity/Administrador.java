@@ -7,6 +7,10 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+/**
+ * Unicidad de usuario/correo: índice único parcial (WHERE activo) gestionado en
+ * db/v2_arreglos_seguros.sql, compatible con el borrado lógico.
+ */
 @Entity
 @Table(name = "administradores")
 @Getter
@@ -29,11 +33,11 @@ public class Administrador {
     private String apellido;
 
     @Email(message = "Correo invalido")
-    @Column  (nullable = false, unique = true)
+    @Column  (nullable = false)
     private String correo;
 
     @NotBlank (message = "El usuario es obligatorio")
-    @Column  (nullable = false, unique = true, length = 100)
+    @Column  (nullable = false, length = 100)
     private String usuario;
 
     @NotBlank (message = "La contraseña es obligatoria")

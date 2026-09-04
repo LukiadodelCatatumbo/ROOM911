@@ -13,7 +13,7 @@ public class AccessAttemptDTO {
     private Long id;
     private LocalDateTime fechaAcceso;
     private Boolean exito;
-    private String message;
+    private String mensaje;
     private Long empleadoId;
     private String nombreEmpleado;
     private String documento;

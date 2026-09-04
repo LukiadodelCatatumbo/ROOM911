@@ -8,8 +8,19 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 
+/**
+ * Unicidad de documento/correo: índice único parcial (WHERE activo) gestionado en
+ * db/v2_arreglos_seguros.sql, compatible con el borrado lógico.
+ */
 @Entity
-@Table(name = "empleados")
+@Table(
+    name = "empleados",
+    indexes = {
+        @Index(name = "indice_empleados_departamento", columnList = "departamento_id"),
+        @Index(name = "indice_empleados_nombre", columnList = "nombre"),
+        @Index(name = "indice_empleados_apellido", columnList = "apellido")
+    }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -30,11 +41,11 @@ public class Empleado {
     private String apellido;
 
     @NotBlank(message = "El documento es obligatorio")
-    @Column(nullable = false, unique = true, length = 20)
+    @Column(nullable = false, length = 20)
     private String documento;
 
     @NotBlank(message = "El email es obligatorio")
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String correo;
 
     @NotBlank(message = "El cargo es obligatorio")

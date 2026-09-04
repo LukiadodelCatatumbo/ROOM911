@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { toast } from "sonner";
+import { useEffect, useRef, useState } from "react";
+import { Timer } from "lucide-react";
 import { authService } from "../../services/authService";
 
 const runtimeEnv =
@@ -13,7 +13,7 @@ function getPositiveMinutes(value: string | undefined, fallback: number): number
 }
 
 const sessionTimeoutMs =
-  getPositiveMinutes(runtimeEnv.VITE_SESSION_TIMEOUT_MINUTES, 15) * 60 * 1000;
+  getPositiveMinutes(runtimeEnv.VITE_SESSION_TIMEOUT_MINUTES, 10) * 60 * 1000;
 const sessionWarningMs = Math.min(
   getPositiveMinutes(runtimeEnv.VITE_SESSION_WARNING_MINUTES, 1) * 60 * 1000,
   sessionTimeoutMs / 2
@@ -25,7 +25,8 @@ export function SessionTimeout() {
   const lastActivityRef = useRef(Date.now());
   const warningTimerRef = useRef<number | null>(null);
   const expirationTimerRef = useRef<number | null>(null);
-  const warningToastRef = useRef<string | number | undefined>(undefined);
+  const countdownRef = useRef<number | null>(null);
+  const [segundosRestantes, setSegundosRestantes] = useState<number | null>(null);
 
   useEffect(() => {
     const clearTimers = () => {
@@ -35,18 +36,27 @@ export function SessionTimeout() {
       if (expirationTimerRef.current !== null) {
         window.clearTimeout(expirationTimerRef.current);
       }
+      if (countdownRef.current !== null) {
+        window.clearInterval(countdownRef.current);
+      }
     };
 
-    const dismissWarning = () => {
-      if (warningToastRef.current !== undefined) {
-        toast.dismiss(warningToastRef.current);
-        warningToastRef.current = undefined;
+    const detenerCuentaAtras = () => {
+      if (countdownRef.current !== null) {
+        window.clearInterval(countdownRef.current);
+        countdownRef.current = null;
       }
+      setSegundosRestantes(null);
     };
 
     const expireSession = () => {
       if (!authService.isAuthenticated()) return;
 
+      try {
+        window.sessionStorage.setItem("sesionExpiradaInactividad", "1");
+      } catch {
+        // sessionStorage no disponible: el aviso en el login simplemente no aparece
+      }
       authService.logout();
       window.location.replace("/login");
     };
@@ -54,10 +64,20 @@ export function SessionTimeout() {
     const showWarning = () => {
       if (!authService.isAuthenticated()) return;
 
-      warningToastRef.current = toast.warning("Sesión próxima a expirar", {
-        description: "La sesión se cerrará en un minuto si no detectamos actividad.",
-        duration: sessionWarningMs,
-      });
+      setSegundosRestantes(Math.round(sessionWarningMs / 1000));
+      countdownRef.current = window.setInterval(() => {
+        setSegundosRestantes((previo) => {
+          if (previo === null) return null;
+          if (previo <= 1) {
+            if (countdownRef.current !== null) {
+              window.clearInterval(countdownRef.current);
+              countdownRef.current = null;
+            }
+            return 0;
+          }
+          return previo - 1;
+        });
+      }, 1000);
     };
 
     const scheduleTimers = () => {
@@ -81,7 +101,7 @@ export function SessionTimeout() {
       if (Date.now() - lastActivityRef.current < 1000) return;
 
       lastActivityRef.current = Date.now();
-      dismissWarning();
+      detenerCuentaAtras();
       scheduleTimers();
     };
 
@@ -100,7 +120,6 @@ export function SessionTimeout() {
 
     return () => {
       clearTimers();
-      dismissWarning();
       activityEvents.forEach((eventName) => {
         window.removeEventListener(eventName, handleActivity);
       });
@@ -108,5 +127,23 @@ export function SessionTimeout() {
     };
   }, []);
 
-  return null;
+  if (segundosRestantes === null) return null;
+
+  return (
+    <div
+      role="alert"
+      aria-live="assertive"
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-lg border border-amber-400/60 bg-amber-50 dark:bg-amber-950/90 text-amber-900 dark:text-amber-100 shadow-lg max-w-[calc(100vw-2rem)]"
+    >
+      <Timer size={20} className="shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+      <div className="text-sm">
+        <p className="font-bold">
+          Inactividad detectada — tu sesión se cerrará en {segundosRestantes}s
+        </p>
+        <p className="text-xs opacity-80">
+          Mueve el mouse o presiona una tecla para seguir trabajando.
+        </p>
+      </div>
+    </div>
+  );
 }

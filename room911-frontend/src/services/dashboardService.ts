@@ -31,7 +31,7 @@ interface UltimoAccesoBackend {
   id: number;
   fechaAcceso: string;
   exito: boolean;
-  message?: string;
+  mensaje?: string;
   empleadoId?: number;
   nombreEmpleado?: string;
   documento?: string;
@@ -92,7 +92,7 @@ export const dashboardService = {
           empleadoNombre: u.nombreEmpleado || "Personal Identificado",
           puerta: u.departamento || "—",
           resultado: u.exito ? "CONCEDIDO" : "DENEGADO",
-          motivo: u.message || (u.exito ? "Validación conforme" : "Acceso denegado"),
+          motivo: u.mensaje || (u.exito ? "Validación conforme" : "Acceso denegado"),
         };
       }),
     };

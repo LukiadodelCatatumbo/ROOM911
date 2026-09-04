@@ -28,11 +28,11 @@ public class EmpleadoServiceImpl implements EmpleadoService {
 
     @Override
     public EmpleadoResponseDTO guardar(EmpleadoDTO dto) {
-        if (empleadoRepository.existsByDocumento(dto.getDocumento())) {
+        if (empleadoRepository.existsByDocumentoAndActivoTrue(dto.getDocumento())) {
             throw new RuntimeException("El documento ya esta registrado");
         }
 
-        if (empleadoRepository.existsByCorreo(dto.getCorreo())) {
+        if (empleadoRepository.existsByCorreoAndActivoTrue(dto.getCorreo())) {
             throw new RuntimeException("El correo ya esta registrado");
         }
 
@@ -83,12 +83,12 @@ public class EmpleadoServiceImpl implements EmpleadoService {
                 .orElseThrow(() -> new RuntimeException("Empleado no encontrado"));
 
         if (!empleado.getDocumento().equals(dto.getDocumento())
-                && empleadoRepository.existsByDocumento(dto.getDocumento())) {
+                && empleadoRepository.existsByDocumentoAndActivoTrue(dto.getDocumento())) {
             throw new RuntimeException("El documento ya esta registrado");
         }
 
         if (!empleado.getCorreo().equals(dto.getCorreo())
-                && empleadoRepository.existsByCorreo(dto.getCorreo())) {
+                && empleadoRepository.existsByCorreoAndActivoTrue(dto.getCorreo())) {
             throw new RuntimeException("El correo ya esta registrado");
         }
 
@@ -145,7 +145,8 @@ public class EmpleadoServiceImpl implements EmpleadoService {
                 String documento = datos[2].trim();
                 String correo = datos[3].trim();
 
-                if (empleadoRepository.existsByDocumento(documento) || empleadoRepository.existsByCorreo(correo)) {
+                if (empleadoRepository.existsByDocumentoAndActivoTrue(documento)
+                        || empleadoRepository.existsByCorreoAndActivoTrue(correo)) {
                     duplicados++;
                     log.warn("Fila omitida por documento o correo duplicado: doc={}, correo={}", documento, correo);
                     continue;

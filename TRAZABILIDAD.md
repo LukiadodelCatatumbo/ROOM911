@@ -318,3 +318,22 @@
 #### Pendiente:
 * Generalizar el control de tema a todas las pantallas y unificarlo con el modal de accesibilidad (tareas 5 y 6 de HU-021).
 * Reemplazar el PDF por impresión del navegador por un PDF del servidor con fecha de generación (tarea 2 de HU-029).
+
+---
+
+### 🗄️ Fase 15: Auditoría de base de datos — arreglos seguros y nomenclatura unificada a español
+* **Fecha:** 2026-09-03 / 2026-09-04
+* **Objetivo:** Ejecutar el plan derivado de la auditoría de BD ([`AUDITORIA_BASE_DE_DATOS.md`](./AUDITORIA_BASE_DE_DATOS.md)) y unificar la nomenclatura del sistema a español.
+
+#### Cambios realizados:
+1. **Auditoría completa** del dominio (según `Reto_room911.docx`) y del esquema real de PostgreSQL: informe con 12 hallazgos clasificados en [`AUDITORIA_BASE_DE_DATOS.md`](./AUDITORIA_BASE_DE_DATOS.md).
+2. **H1 corregido** — nueva columna `intento_acceso.documento_intentado` (con backfill de los 14 intentos existentes) para cumplir el requisito 4 del reto: los intentos de empleados no registrados quedan auditables por credencial. Mapeada en `AccessAttempt` y poblada en `AccessServiceImpl`, `AccessAttemptServiceImpl` y `DataInitializer`.
+3. **H2 corregido** — 8 índices secundarios (`indice_*`) para las consultas del reto: histórico por empleado, rango de fechas, búsquedas por nombre/apellido y filtro por departamento; declarados también en los `@Table` de las entidades.
+4. **H5 corregido** — las 5 constraints únicas globales con nombre hash se reemplazaron por índices únicos parciales `unico_* ... WHERE activo`, compatibles con el borrado lógico. La validación de duplicados en `EmpleadoServiceImpl`, `AdministradorServiceImpl` y `DepartamentoServiceImpl` pasó a `existsBy*AndActivoTrue`.
+5. **H6 resuelto** — nomenclatura unificada a español extremo a extremo: columnas `message`→`mensaje` y `acceso_date`→`fecha_acceso`; contrato JSON (`usuario`, `contrasena`, `mensaje`, `cantidadEmpleados`); frontend actualizado en cadena con compatibilidad de lectura para sesiones previas. Se conserva `token` como término técnico estándar.
+6. **H8 resuelto** — `backup_reto_room_911.sql` regenerado desde la BD corregida; `db/merge_backup_reto_room_911.sql` marcado como obsoleto. Script idempotente y reproducible: `db/v2_arreglos_seguros.sql`.
+7. **Guía de migración de equipo** en [`GUIA_NUEVO_COMPUTADOR.md`](./GUIA_NUEVO_COMPUTADOR.md).
+8. Verificado: `./mvnw compile` y `pnpm build` sin errores.
+
+#### Pendiente (de la auditoría):
+* Flyway con `ddl-auto=validate` (H3), CHECKs de dominio + catálogo de cargos/roles (H4), migración a `timestamptz` (H7), `@UpdateTimestamp` para `fecha_actualizacion` (H10).

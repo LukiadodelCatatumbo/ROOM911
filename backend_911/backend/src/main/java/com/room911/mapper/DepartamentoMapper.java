@@ -5,7 +5,7 @@ import com.room911.entity.Departamento;
 
 public class DepartamentoMapper {
 
-    public static DepartamentoResponseDTO toDTO(Departamento departamento, long empleadosCount){
+    public static DepartamentoResponseDTO toDTO(Departamento departamento, long cantidadEmpleados){
         return DepartamentoResponseDTO.builder()
                 .id(departamento.getId())
                 .nombre(departamento.getNombre())
@@ -14,7 +14,7 @@ public class DepartamentoMapper {
                 .responsable(departamento.getResponsable())
                 .nivelRestriccion(departamento.getNivelRestriccion())
                 .capacidadMaxima(departamento.getCapacidadMaxima())
-                .empleadosCount(empleadosCount)
+                .cantidadEmpleados(cantidadEmpleados)
                 .activo(departamento.getActivo())
                 .fechaCreacion(departamento.getFechaCreacion())
                 .fechaActualizacion(departamento.getFechaActualizacion())

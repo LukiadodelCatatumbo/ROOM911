@@ -8,6 +8,8 @@ import java.util.Optional;
 
 @Repository
 public interface DepartamentoRepository extends JpaRepository<Departamento, Long> {
-    boolean existsByNombre(String nombre);
     Optional<Departamento> findByNombre(String nombre);
+
+    // Unicidad solo entre filas activas (índice único parcial WHERE activo)
+    boolean existsByNombreAndActivoTrue(String nombre);
 }

@@ -27,7 +27,8 @@ public class AccessAttemptServiceImpl implements AccessAttemptService {
         AccessAttempt intento = AccessAttempt.builder()
                 .fechaAcceso(LocalDateTime.now())
                 .exito(dto.getExito())
-                .message(dto.getMessage())
+                .mensaje(dto.getMensaje())
+                .documentoIntentado(empleado != null ? empleado.getDocumento() : null)
                 .empleado(empleado)
                 .build();
 

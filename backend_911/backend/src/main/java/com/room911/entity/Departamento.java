@@ -6,6 +6,10 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+/**
+ * Unicidad de nombre: índice único parcial (WHERE activo) gestionado en
+ * db/v2_arreglos_seguros.sql, compatible con el borrado lógico.
+ */
 @Entity
 @Table(name = "departamentos")
 @Getter
@@ -19,7 +23,7 @@ public class Departamento {
     private Long id;
 
     @NotBlank (message = "El nombre del departamento es obligatorio")
-    @Column (nullable = false, unique = true, length = 100)
+    @Column (nullable = false, length = 100)
     private String nombre;
 
     @Column(length = 20)
@@ -36,6 +40,11 @@ public class Departamento {
 
     @Column(name = "capacidad_maxima")
     private Integer capacidadMaxima;
+
+    /** Administrador responsable del área (relación departamentos <-> administradores). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "administrador_id")
+    private Administrador administrador;
 
     @Builder.Default
     @Column(nullable = false)

@@ -112,7 +112,7 @@ public class PdfServiceImpl implements PdfService {
 
                     document.add(new Paragraph(
                             "Mensaje: "
-                                    + intento.getMessage()));
+                                    + intento.getMensaje()));
 
                     document.add(new Paragraph(
                             "--------------------------------------"));

@@ -6,7 +6,7 @@ interface LoginResponseBackend {
   loginCorrecto: boolean;
   mensaje: string;
   token: string;
-  username: string;
+  usuario: string;
   nombre: string;
   correo: string;
   rol: AdminRole | string;
@@ -18,15 +18,15 @@ const USER_KEY = "user";
 export const authService = {
   async login(usuario: string, clave: string): Promise<LoginResponseBackend> {
     const { data } = await api.post<LoginResponseBackend>("/auth/login", {
-      username: usuario,
-      password: clave,
+      usuario: usuario,
+      contrasena: clave,
     });
     if (data.token) {
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(
         USER_KEY,
         JSON.stringify({
-          username: data.username,
+          usuario: data.usuario,
           nombre: data.nombre,
           correo: data.correo,
           rol: data.rol,
@@ -46,11 +46,13 @@ export const authService = {
     if (!userStr) return null;
     try {
       const parsed = JSON.parse(userStr);
-      if (!parsed.username && !parsed.nombre) return null;
+      // `usuario` es el nombre actual; `username` mantiene compatibilidad con sesiones previas.
+      const usuario = parsed.usuario || parsed.username;
+      if (!usuario && !parsed.nombre) return null;
       return {
-        id: parsed.username || "",
-        username: parsed.username,
-        nombre: parsed.nombre || parsed.username || "Usuario",
+        id: usuario || "",
+        usuario: usuario,
+        nombre: parsed.nombre || usuario || "Usuario",
         email: parsed.correo || parsed.email || "",
         rol: parsed.rol,
         ultimoAcceso: parsed.ultimoAcceso,

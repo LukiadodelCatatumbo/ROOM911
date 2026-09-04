@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Lock, AlertCircle, ShieldCheck, CheckCircle2, ScanLine } from "lucide-react";
+import { Lock, AlertCircle, ShieldCheck, CheckCircle2, ScanLine, Timer } from "lucide-react";
 import { authService } from "../services/authService";
 import { toast } from "sonner";
 
@@ -17,7 +17,19 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [avisoInactividad, setAvisoInactividad] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem("sesionExpiradaInactividad") === "1") {
+        setAvisoInactividad(true);
+        window.sessionStorage.removeItem("sesionExpiradaInactividad");
+      }
+    } catch {
+      // sessionStorage no disponible: se omite el aviso
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,6 +133,19 @@ export default function Login() {
               </p>
             </div>
 
+            {avisoInactividad && (
+              <div
+                role="alert"
+                className="mx-10 mt-6 flex items-start gap-2.5 p-4 bg-[#FEF6E7] dark:bg-amber-950/30 border border-[#F5DFA8] dark:border-amber-900 rounded-md text-sm text-[#92600A] dark:text-amber-300"
+              >
+                <Timer size={16} className="shrink-0 mt-0.5" aria-hidden="true" />
+                <span>
+                  Tu sesión se cerró automáticamente por inactividad. Vuelve a
+                  iniciar sesión para continuar.
+                </span>
+              </div>
+            )}
+
             {error && (
               <div
                 role="alert"
@@ -184,9 +209,6 @@ export default function Login() {
                 <span className="text-muted-foreground">Contraseña</span>
                 <code className="font-semibold text-foreground">{demoPassword}</code>
               </div>
-              <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 mt-4">
-                Credenciales disponibles únicamente para el entorno local de demostración.
-              </p>
             </div>
           )}
 

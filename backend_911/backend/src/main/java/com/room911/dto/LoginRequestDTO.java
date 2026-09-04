@@ -11,9 +11,9 @@ import lombok.*;
 public class LoginRequestDTO {
 
     @NotBlank(message = "El usuario es obligatorio")
-    private String username;
+    private String usuario;
 
     @NotBlank(message = "La contraseña es obligatoria")
-    private String password;
+    private String contrasena;
 
 }

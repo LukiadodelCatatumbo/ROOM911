@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   ScanLine,
   RefreshCw,
+  ShieldAlert,
 } from "lucide-react";
 import {
   AreaChart,
@@ -22,12 +23,14 @@ import {
   Cell,
 } from "recharts";
 import { dashboardService } from "../services/dashboardService";
-import { DashboardStats, AccessEvent } from "../types";
+import { accesoService } from "../services/accesoService";
+import { DashboardStats, AccessEvent, AccessEntry } from "../types";
 import { toast } from "sonner";
 import { AccesoBadge } from "../components/common/Badge";
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [alertas, setAlertas] = useState<AccessEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -35,8 +38,26 @@ export default function Dashboard() {
     if (showToast) setRefreshing(true);
     else setLoading(true);
     try {
-      const data = await dashboardService.obtenerResumen();
+      const [data, historial] = await Promise.all([
+        dashboardService.obtenerResumen(),
+        accesoService.listarHistorial().catch(() => [] as AccessEntry[]),
+      ]);
       setStats(data);
+      const limite24h = Date.now() - 24 * 60 * 60 * 1000;
+      const aMilisegundos = (ts: string) =>
+        new Date(ts.includes("T") ? ts : ts.replace(" ", "T")).getTime();
+      setAlertas(
+        historial
+          .filter((ev) => ev.resultado === "DENEGADO" && Boolean(ev.timestamp))
+          .filter((ev) => {
+            const ms = aMilisegundos(ev.timestamp ?? "");
+            return !Number.isNaN(ms) && ms >= limite24h;
+          })
+          .sort(
+            (a, b) =>
+              aMilisegundos(b.timestamp ?? "") - aMilisegundos(a.timestamp ?? "")
+          )
+      );
       if (showToast) {
         toast.success("Panel de control actualizado", {
           description: "Métricas e indicadores sincronizados.",
@@ -264,6 +285,68 @@ export default function Dashboard() {
             Presencia simultánea en áreas de trabajo
           </p>
         </div>
+      </div>
+
+      {/* Alertas de Seguridad (últimas 24 horas) */}
+      <div className="bg-white dark:bg-card rounded-lg border border-border shadow-2xs overflow-hidden">
+        <div className="p-5 border-b border-border flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <ShieldAlert
+                size={16}
+                className={
+                  alertas.length > 0
+                    ? "text-rose-600 dark:text-rose-400"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }
+              />
+              Alertas de Seguridad · Últimas 24 horas
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Intentos de ingreso denegados detectados por las terminales de la planta.
+            </p>
+          </div>
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-bold font-mono shrink-0 ${
+              alertas.length > 0
+                ? "bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60"
+                : "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60"
+            }`}
+          >
+            {alertas.length} {alertas.length === 1 ? "alerta" : "alertas"}
+          </span>
+        </div>
+
+        {alertas.length === 0 ? (
+          <div className="p-6 flex items-center gap-3 text-sm text-muted-foreground">
+            <CheckCircle2 size={17} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>
+              Todo en orden: no se registraron accesos denegados en las últimas 24 horas.
+            </span>
+          </div>
+        ) : (
+          <ul className="divide-y divide-border max-h-72 overflow-y-auto">
+            {alertas.slice(0, 20).map((alerta, idx) => (
+              <li
+                key={alerta.dbId ?? `alerta-${idx}`}
+                className="px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs hover:bg-rose-500/5 transition-colors"
+              >
+                <span className="font-mono text-muted-foreground sm:w-36 shrink-0">
+                  {alerta.fecha} {alerta.hora}
+                </span>
+                <span className="font-semibold text-foreground sm:min-w-[180px] truncate">
+                  {alerta.empleadoNombre || alerta.empleadoId || "Empleado no identificado"}
+                </span>
+                <span className="text-muted-foreground flex-1 min-w-0 truncate">
+                  {alerta.motivo}
+                </span>
+                <span className="text-[11px] font-bold font-mono text-rose-600 dark:text-rose-400 shrink-0">
+                  DENEGADO
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Charts Row */}

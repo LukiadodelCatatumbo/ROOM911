@@ -71,7 +71,7 @@ export const accesoService = {
         hora: horaPart?.substring(0, 8),
         puerta: d.puerta || d.departamento || "—",
         resultado: (d.resultado as AccessResult) || (esExitoso ? "CONCEDIDO" : "DENEGADO"),
-        motivo: d.message || d.mensaje || d.observaciones || (esExitoso ? "Validación conforme" : "Acceso denegado"),
+        motivo: d.mensaje || d.observaciones || (esExitoso ? "Validación conforme" : "Acceso denegado"),
         empleadoId: d.documento || (d.empleadoId ? `EMP-${d.empleadoId}` : undefined),
         empleadoNombre: d.nombreEmpleado,
         departamento: d.departamento,
@@ -96,7 +96,7 @@ export const accesoService = {
         hora: horaPart?.substring(0, 8),
         puerta: d.puerta || d.departamento || "—",
         resultado: (d.resultado as AccessResult) || (esExitoso ? "CONCEDIDO" : "DENEGADO"),
-        motivo: d.message || d.mensaje || d.observaciones || (esExitoso ? "Validación conforme" : "Acceso denegado"),
+        motivo: d.mensaje || d.observaciones || (esExitoso ? "Validación conforme" : "Acceso denegado"),
         empleadoId: d.documento || String(empleadoId),
       };
     });

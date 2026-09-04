@@ -20,7 +20,7 @@ import { ConfirmDialog } from "../components/common/ConfirmDialog";
 import { toast } from "sonner";
 
 interface AdminErrors {
-  username?: string;
+  usuario?: string;
   nombre?: string;
   email?: string;
   confirmEmail?: string;
@@ -43,7 +43,7 @@ export default function Administradores() {
   // Modal / Form state
   const [formOpen, setFormOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);
-  const [username, setUsername] = useState("");
+  const [usuario, setUsername] = useState("");
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
@@ -151,7 +151,7 @@ export default function Administradores() {
     const matchesSearch =
       !q ||
       adm.nombre.toLowerCase().includes(q) ||
-      (adm.username && adm.username.toLowerCase().includes(q)) ||
+      (adm.usuario && adm.usuario.toLowerCase().includes(q)) ||
       adm.email.toLowerCase().includes(q) ||
       adm.id.toLowerCase().includes(q);
 
@@ -187,7 +187,7 @@ export default function Administradores() {
 
   const handleOpenEdit = (adm: AdminUser) => {
     setEditingAdmin(adm);
-    setUsername(adm.username || "");
+    setUsername(adm.usuario || "");
     setNombre(adm.nombre);
     setEmail(adm.email);
     setConfirmEmail(adm.email);
@@ -205,12 +205,12 @@ export default function Administradores() {
     const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/;
 
     // Username
-    if (!username.trim()) {
-      errs.username = "El nombre de usuario es obligatorio.";
-    } else if (username.trim().length < 3 || username.trim().length > 30) {
-      errs.username = "El usuario debe tener entre 3 y 30 caracteres alfanuméricos.";
-    } else if (!userRegex.test(username.trim())) {
-      errs.username = "El usuario solo puede contener letras, números, puntos y guiones.";
+    if (!usuario.trim()) {
+      errs.usuario = "El nombre de usuario es obligatorio.";
+    } else if (usuario.trim().length < 3 || usuario.trim().length > 30) {
+      errs.usuario = "El usuario debe tener entre 3 y 30 caracteres alfanuméricos.";
+    } else if (!userRegex.test(usuario.trim())) {
+      errs.usuario = "El usuario solo puede contener letras, números, puntos y guiones.";
     }
 
     // Nombre
@@ -277,7 +277,7 @@ export default function Administradores() {
     try {
       if (editingAdmin) {
         await adminService.actualizar(editingAdmin.id, {
-          username: username.trim(),
+          usuario: usuario.trim(),
           nombre: nombre.trim(),
           email: email.trim(),
           rol,
@@ -287,7 +287,7 @@ export default function Administradores() {
         });
       } else {
         await adminService.crear({
-          username: username.trim(),
+          usuario: usuario.trim(),
           nombre: nombre.trim(),
           email: email.trim(),
           password,
@@ -316,7 +316,7 @@ export default function Administradores() {
     if (!adm) return;
 
     const isSelf =
-      adm.username === currentUser?.username ||
+      adm.usuario === currentUser?.usuario ||
       adm.id === currentUser?.id;
 
     if (isSelf) {
@@ -480,14 +480,14 @@ export default function Administradores() {
               ) : (
                 paginatedAdmins.map((adm) => {
                   const isSelf =
-                    adm.username === currentUser?.username ||
+                    adm.usuario === currentUser?.usuario ||
                     adm.id === currentUser?.id ||
                     (currentUser?.rol === "SUPER_ADMIN" && adm.rol === "SUPER_ADMIN");
 
                   return (
                     <tr key={adm.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-6 py-3 font-mono font-semibold text-primary">
-                        {adm.username}
+                        {adm.usuario}
                         {isSelf && (
                           <span className="ml-2 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-sans font-semibold">
                             Tú
@@ -600,19 +600,19 @@ export default function Administradores() {
                   type="text"
                   maxLength={30}
                   placeholder="Ej. j.reyes"
-                  value={username}
+                  value={usuario}
                   onChange={(e) => {
                     setUsername(e.target.value);
-                    if (errors.username) setErrors({ ...errors, username: undefined });
+                    if (errors.usuario) setErrors({ ...errors, usuario: undefined });
                   }}
                   className={`w-full px-3 py-2 bg-background border rounded-md text-xs font-mono text-foreground focus:outline-hidden focus:ring-1 ${
-                    errors.username ? "border-destructive ring-1 ring-destructive" : "border-border focus:ring-primary"
+                    errors.usuario ? "border-destructive ring-1 ring-destructive" : "border-border focus:ring-primary"
                   }`}
                 />
-                {errors.username && (
+                {errors.usuario && (
                   <p className="text-destructive text-[11px] mt-1 flex items-center gap-1">
                     <AlertCircle size={12} />
-                    <span>{errors.username}</span>
+                    <span>{errors.usuario}</span>
                   </p>
                 )}
               </div>
@@ -832,7 +832,7 @@ export default function Administradores() {
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title="¿Eliminar cuenta de administrador?"
-        description={`Se eliminará definitivamente la cuenta de ${confirmDialog.admin?.nombre} (${confirmDialog.admin?.username}). Esta operación no es reversible; los registros de auditoría asociados se conservan conforme a la norma ISO 27001.`}
+        description={`Se eliminará definitivamente la cuenta de ${confirmDialog.admin?.nombre} (${confirmDialog.admin?.usuario}). Esta operación no es reversible; los registros de auditoría asociados se conservan conforme a la norma ISO 27001.`}
         confirmLabel="Eliminar Cuenta"
         isDestructive
         onConfirm={handleEliminarAdmin}

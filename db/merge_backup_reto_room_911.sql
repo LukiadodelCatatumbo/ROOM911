@@ -1,3 +1,9 @@
+-- ⚠️ OBSOLETO (2026-09-03): este script operaba contra el esquema antiguo
+-- (tablas admin_users/visitantes, administradores sin rol). El dump
+-- backup_reto_room_911.sql ya fue regenerado desde la BD viva con el esquema
+-- actual y el arreglo de db/v2_arreglos_seguros.sql, por lo que este merge
+-- ya no es necesario. Conservado solo como referencia histórica.
+--
 -- Combina los datos de backup_reto_room_911.sql con la base actual.
 -- Ejecutar con:
 --   psql -h localhost -p 5432 -U postgres -d reto_room_911 \

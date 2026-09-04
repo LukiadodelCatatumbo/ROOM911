@@ -9,7 +9,7 @@ interface DepartamentoBackend {
   responsable?: string;
   nivelRestriccion?: string;
   capacidadMaxima?: number;
-  empleadosCount?: number;
+  cantidadEmpleados?: number;
   activo?: boolean;
 }
 
@@ -20,8 +20,8 @@ const mapDepartamento = (d: DepartamentoBackend): Department => ({
   descripcion: d.descripcion,
   responsable: d.responsable,
   nivelRestriccion: (d.nivelRestriccion as Department["nivelRestriccion"]) || "MEDIA",
-  totalEmpleados: d.empleadosCount ?? 0,
-  empleadosCount: d.empleadosCount ?? 0,
+  totalEmpleados: d.cantidadEmpleados ?? 0,
+  cantidadEmpleados: d.cantidadEmpleados ?? 0,
   capacidadMaxima: d.capacidadMaxima ?? 50,
   activo: d.activo ?? true,
 });

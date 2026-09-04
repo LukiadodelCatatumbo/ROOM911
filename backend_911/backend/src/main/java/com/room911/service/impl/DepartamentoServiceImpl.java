@@ -3,12 +3,16 @@ package com.room911.service.impl;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import com.room911.dto.DepartamentoDTO;
 import com.room911.dto.DepartamentoResponseDTO;
+import com.room911.entity.Administrador;
 import com.room911.entity.Departamento;
 import com.room911.mapper.DepartamentoMapper;
+import com.room911.repository.AdministradorRepository;
 import com.room911.repository.DepartamentoRepository;
 import com.room911.repository.EmpleadoRepository;
 import com.room911.service.interfaces.DepartamentoService;
@@ -21,6 +25,19 @@ public class DepartamentoServiceImpl implements DepartamentoService {
 
     private final DepartamentoRepository departamentoRepository;
     private final EmpleadoRepository empleadoRepository;
+    private final AdministradorRepository administradorRepository;
+
+    /**
+     * Resuelve el administrador autenticado para dejarlo como responsable
+     * del departamento que se crea (relación FK departamentos.administrador_id).
+     */
+    private Administrador resolverAdministradorActual() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth.getName() == null) {
+            return null;
+        }
+        return administradorRepository.findByUsuario(auth.getName()).orElse(null);
+    }
 
     private DepartamentoResponseDTO toDTO(Departamento departamento) {
         long activos = empleadoRepository.countByDepartamentoIdAndActivoTrue(departamento.getId());
@@ -30,7 +47,7 @@ public class DepartamentoServiceImpl implements DepartamentoService {
     @Override
     public DepartamentoResponseDTO guardar(DepartamentoDTO dto) {
 
-        if (departamentoRepository.existsByNombre(dto.getNombre())) {
+        if (departamentoRepository.existsByNombreAndActivoTrue(dto.getNombre())) {
             throw new RuntimeException("El departamento ya existe");
         }
 
@@ -41,6 +58,7 @@ public class DepartamentoServiceImpl implements DepartamentoService {
                 .responsable(dto.getResponsable())
                 .nivelRestriccion(dto.getNivelRestriccion())
                 .capacidadMaxima(dto.getCapacidadMaxima())
+                .administrador(resolverAdministradorActual())
                 .activo(true)
                 .fechaCreacion(LocalDateTime.now())
                 .build();
@@ -79,7 +97,7 @@ public class DepartamentoServiceImpl implements DepartamentoService {
                         new RuntimeException("Departamento no encontrado"));
 
         if (!departamento.getNombre().equals(dto.getNombre())
-                && departamentoRepository.existsByNombre(dto.getNombre())) {
+                && departamentoRepository.existsByNombreAndActivoTrue(dto.getNombre())) {
             throw new RuntimeException("El departamento ya existe");
         }
 

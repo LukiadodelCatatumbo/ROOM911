@@ -46,7 +46,7 @@ export interface Department {
   responsable?: string;
   nivelRestriccion: RestrictionLevel;
   totalEmpleados?: number;
-  empleadosCount?: number;
+  cantidadEmpleados?: number;
   capacidadMaxima?: number;
   color?: string;
   activo?: boolean;
@@ -55,7 +55,7 @@ export interface Department {
 export interface AdminUser {
   id: string;
   dbId?: number;
-  username?: string;
+  usuario?: string;
   nombre: string;
   email: string;
   rol: AdminRole;
