@@ -4,6 +4,21 @@ import { Employee } from "../types";
 const fechaDe = (valor?: string) =>
   valor ? String(valor).split("T")[0] : undefined;
 
+/** Vista pública mínima del simulador: la credencial es el id numérico. */
+const mapColaboradorPublico = (d: any): Employee => ({
+  id: `EMP-${String(d.id).padStart(4, "0")}`,
+  dbId: d.id,
+  nombre: d.nombre || "",
+  apellido: d.apellido || "",
+  departamento: d.departamento || "Sin asignar",
+  cargo: d.cargo || "",
+  acceso: d.accesoPermitido ?? true,
+  permisoAcceso: d.accesoPermitido ?? true,
+  activo: d.activo ?? true,
+  codigoQr: String(d.id),
+  documentoIdentidad: String(d.id),
+});
+
 const mapEmpleado = (d: any): Employee => ({
   id: d.documento || `EMP-${String(d.id).padStart(4, "0")}`,
   dbId: d.id,
@@ -60,7 +75,17 @@ export const empleadoService = {
   },
 
   async listarTodos(): Promise<Employee[]> {
-    return this.listar();
+    try {
+      return await this.listar();
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) {
+        // Terminal pública sin sesión: vista mínima real (sin documento ni correo).
+        const response = await api.get("/acceso/colaboradores");
+        return response.data.map(mapColaboradorPublico);
+      }
+      throw error;
+    }
   },
 
   async buscarPorId(id: string | number): Promise<Employee> {

@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.room911.dto.AccessRequestDTO;
 import com.room911.dto.AccessResponseDTO;
+import com.room911.dto.ColaboradorSimuladorDTO;
 import com.room911.entity.AccessAttempt;
 import com.room911.entity.Empleado;
 import com.room911.entity.PuntoAcceso;
@@ -33,6 +34,24 @@ public class AccessServiceImpl implements AccessService {
     private final EmpleadoRepository empleadoRepository;
     private final AccessAttemptRepository accessAttemptRepository;
     private final PuntoAccesoRepository puntoAccesoRepository;
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<ColaboradorSimuladorDTO> listarColaboradores() {
+        return empleadoRepository.findAll().stream()
+                .map(e -> ColaboradorSimuladorDTO.builder()
+                        .id(e.getId())
+                        .nombre(e.getNombre())
+                        .apellido(e.getApellido())
+                        .cargo(e.getCargo())
+                        .departamento(e.getDepartamento() != null
+                                ? e.getDepartamento().getNombre()
+                                : "Sin asignar")
+                        .activo(e.getActivo())
+                        .accesoPermitido(e.getAccesoPermitido())
+                        .build())
+                .toList();
+    }
 
     @Override
     @Transactional

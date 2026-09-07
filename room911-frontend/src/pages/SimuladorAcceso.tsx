@@ -190,7 +190,7 @@ const DEFAULT_TERMINAL_EMPLOYEES: Employee[] = [
 
 export default function SimuladorAcceso() {
   const [employees, setEmployees] = useState<Employee[]>(DEFAULT_TERMINAL_EMPLOYEES);
-  const [selectedCargo, setSelectedCargo] = useState("Operador de Envasado Estéril");
+  const [selectedEmpId, setSelectedEmpId] = useState("1020304050");
   const [selectedDoorId, setSelectedDoorId] = useState("DOOR-PROD-01");
   const [simulating, setSimulating] = useState(false);
   const [recentLogs, setRecentLogs] = useState<SimulationLog[]>([]);
@@ -320,30 +320,26 @@ export default function SimuladorAcceso() {
         const emps = await empleadoService.listarTodos();
         if (emps && emps.length > 0) {
           setEmployees(emps);
-          if (emps[0]?.cargo) setSelectedCargo(emps[0].cargo);
+          setSelectedEmpId(emps[0].id);
         }
       } catch {
-        // Sin sesión o sin conexión: modo demo con colaboradores locales.
+        // Sin conexión: modo demo con colaboradores locales.
       }
     };
     init();
   }, []);
 
-  // Cargos según los empleados cargados (BD con sesión, demo sin sesión).
-  const cargos = [
-    ...new Set(
-      employees.map((e) => e.cargo).filter((c) => c && c.trim() !== "")
-    ),
-  ];
-
-  // Colaborador representante del cargo (para credencial y departamento).
+  // Colaborador seleccionado (nombre + cargo). Con sesión son los de BD.
   const selectedEmployee =
-    employees.find((e) => e.cargo === selectedCargo) ?? employees[0];
+    employees.find((e) => e.id === selectedEmpId) ?? employees[0];
 
-  // Si el cargo seleccionado deja de existir (recarga de datos), usa el primero.
+  // Si el colaborador deja de existir (recarga de datos), usa el primero.
   useEffect(() => {
-    if (cargos.length > 0 && !cargos.includes(selectedCargo)) {
-      setSelectedCargo(cargos[0]);
+    if (
+      employees.length > 0 &&
+      !employees.some((e) => e.id === selectedEmpId)
+    ) {
+      setSelectedEmpId(employees[0].id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employees]);
@@ -363,7 +359,7 @@ export default function SimuladorAcceso() {
   );
   const filteredAccessPoints = assignedPoints;
 
-  // Si el punto seleccionado no pertenece al cargo, auto-seleccionar el primero asignado.
+  // Si el punto seleccionado no pertenece al colaborador, auto-seleccionar el primero asignado.
   useEffect(() => {
     if (
       filteredAccessPoints.length > 0 &&
@@ -372,12 +368,20 @@ export default function SimuladorAcceso() {
       setSelectedDoorId(filteredAccessPoints[0].id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCargo, employees]);
+  }, [selectedEmpId, employees]);
 
   const selectedAccessPoint =
     accessPoints.find((p) => p.id === selectedDoorId) ||
     filteredAccessPoints[0] ||
     accessPoints[0];
+
+  // Etiqueta de punto con su zona y horario: lo permitido y lo denegado
+  // se distinguen por el grupo del selector. Solo acceso de entrada.
+  const etiquetaPunto = (door: AccessPoint) => {
+    const s = ACCESS_POINT_SCHEDULES[door.id];
+    const horario = s ? ` · ${s.horaInicio}–${s.horaFin}` : "";
+    return `${door.nombre} · ${door.departamento}${horario}`;
+  };
 
   // Acceso ya vigente para esta combinación colaborador + punto.
   const currentGrant =
@@ -749,30 +753,29 @@ export default function SimuladorAcceso() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              {/* Cargo Selector (según base de datos) */}
+              {/* Colaborador Selector (nombre + cargo) */}
               <div>
                 <label className="block text-foreground font-semibold mb-1.5">
-                  Cargo
+                  Colaborador
                 </label>
                 <select
-                  value={selectedCargo}
-                  onChange={(e) => setSelectedCargo(e.target.value)}
+                  value={selectedEmpId}
+                  onChange={(e) => setSelectedEmpId(e.target.value)}
                   className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-xs focus:outline-hidden focus:ring-1 focus:ring-primary"
                 >
-                  {cargos.map((cargo) => {
-                    const rep = employees.find((e) => e.cargo === cargo);
-                    const isActivo = rep?.permisoAcceso ?? rep?.acceso ?? rep?.activo ?? true;
+                  {employees.map((emp) => {
+                    const isActivo = emp.permisoAcceso ?? emp.acceso ?? emp.activo ?? true;
                     return (
-                      <option key={cargo} value={cargo}>
-                        {cargo} ({isActivo ? "Activo" : "Inactivo"})
+                      <option key={emp.id} value={emp.id}>
+                        {emp.nombre} {emp.apellido} — {emp.cargo} ({isActivo ? "Activo" : "Inactivo"})
                       </option>
                     );
                   })}
                 </select>
                 <p className="text-[10px] text-muted-foreground mt-1">
                   {selectedEmployee
-                    ? `Departamento: ${selectedEmployee.departamento}.`
-                    : "Seleccione un cargo para ver sus puntos permitidos."}
+                    ? `Cargo: ${selectedEmployee.cargo} · Departamento: ${selectedEmployee.departamento}.`
+                    : "Seleccione un colaborador para ver sus puntos permitidos."}
                 </p>
               </div>
 
@@ -786,24 +789,18 @@ export default function SimuladorAcceso() {
                   onChange={(e) => setSelectedDoorId(e.target.value)}
                   className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-xs focus:outline-hidden focus:ring-1 focus:ring-primary"
                 >
-                  <optgroup
-                    label={
-                      selectedEmployee
-                        ? `Asignados a ${selectedEmployee.departamento} + zona común`
-                        : "Puntos de acceso"
-                    }
-                  >
+                  <optgroup label="Zonas permitidas para este cargo">
                     {assignedPoints.map((door) => (
                       <option key={door.id} value={door.id}>
-                        {door.nombre}
+                        {etiquetaPunto(door)}
                       </option>
                     ))}
                   </optgroup>
                   {otherPoints.length > 0 && (
-                    <optgroup label="Otros puntos (el servidor los denegará)">
+                    <optgroup label="Acceso denegado para este cargo">
                       {otherPoints.map((door) => (
                         <option key={door.id} value={door.id}>
-                          {door.nombre}
+                          {etiquetaPunto(door)}
                         </option>
                       ))}
                     </optgroup>
@@ -831,9 +828,9 @@ export default function SimuladorAcceso() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <span className="text-muted-foreground block">Cargo</span>
-                    <p className="font-medium text-foreground">{selectedCargo}</p>
-                    <p className="text-[10px] text-muted-foreground">{selectedEmployee.departamento}</p>
+                    <span className="text-muted-foreground block">Colaborador</span>
+                    <p className="font-medium text-foreground">{selectedEmployee.nombre} {selectedEmployee.apellido}</p>
+                    <p className="text-[10px] text-muted-foreground">{selectedEmployee.cargo} · {selectedEmployee.departamento}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground block">Punto de acceso</span>
@@ -944,7 +941,7 @@ export default function SimuladorAcceso() {
               <Terminal size={32} className="text-muted-foreground/50 animate-pulse" />
               <p className="text-xs font-semibold text-muted-foreground">Terminal en espera de lecturas</p>
               <p className="text-[11px] text-muted-foreground max-w-md">
-                Seleccione un cargo y punto de control en la consola superior para ejecutar y auditar pruebas de acceso en tiempo real.
+                Seleccione un colaborador y punto de control en la consola superior para ejecutar y auditar pruebas de acceso en tiempo real.
               </p>
             </div>
           ) : (
