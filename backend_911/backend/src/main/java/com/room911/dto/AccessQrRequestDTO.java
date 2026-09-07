@@ -12,4 +12,10 @@ public class AccessQrRequestDTO {
 
     @NotBlank(message = "El código QR es obligatorio")
     private String codigoQr;
+
+    /**
+     * Punto de acceso solicitado (código o nombre). Opcional por compatibilidad;
+     * si se informa, se valida contra el catálogo de puntos.
+     */
+    private String puerta;
 }

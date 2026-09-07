@@ -14,5 +14,7 @@ public interface AdministradorRepository extends JpaRepository<Administrador, Lo
     // Unicidad solo entre filas activas (índices únicos parciales WHERE activo)
     boolean existsByUsuarioAndActivoTrue(String usuario);
     boolean existsByCorreoAndActivoTrue(String correo);
+
+    long countByRolAndActivoTrue(String rol);
 }
 

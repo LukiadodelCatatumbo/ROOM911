@@ -4,7 +4,7 @@ import {
   Plus,
   Search,
   Edit2,
-  Trash2,
+  PowerOff,
   AlertCircle,
   X,
   RefreshCw,
@@ -310,8 +310,8 @@ export default function Administradores() {
     }
   };
 
-  /** Eliminación real (DELETE /administradores/{id}); el backend la restringe a SUPER_ADMIN. */
-  const handleEliminarAdmin = async () => {
+  /** Inhabilitación lógica (DELETE /administradores/{id}); el backend la restringe a SUPER_ADMIN. */
+  const handleInhabilitarAdmin = async () => {
     const adm = confirmDialog.admin;
     if (!adm) return;
 
@@ -321,23 +321,23 @@ export default function Administradores() {
 
     if (isSelf) {
       toast.error("Operación bloqueada", {
-        description: "No puede eliminar su propia cuenta mientras tiene sesión activa.",
+        description: "No puede inhabilitar su propia cuenta mientras tiene sesión activa.",
       });
       setConfirmDialog({ isOpen: false, admin: null });
       return;
     }
 
     try {
-      await adminService.eliminar(adm.dbId ?? adm.id);
+      await adminService.inhabilitar(adm.dbId ?? adm.id);
       setConfirmDialog({ isOpen: false, admin: null });
-      toast.success("Administrador eliminado", {
-        description: `La cuenta de ${adm.nombre} fue eliminada del sistema.`,
+      toast.success("Administrador inhabilitado", {
+        description: `La cuenta de ${adm.nombre} quedó inactiva; sus registros de auditoría se conservan.`,
       });
       loadAdmins();
     } catch (err: any) {
       toast.error(
         err?.response?.data?.mensaje ||
-          "No se pudo eliminar el administrador."
+          "No se pudo inhabilitar el administrador."
       );
     }
   };
@@ -528,15 +528,15 @@ export default function Administradores() {
                               className={`p-1.5 rounded-md transition-colors ${
                                 isSelf
                                   ? "text-muted-foreground/30 cursor-not-allowed"
-                                  : "text-destructive hover:bg-destructive/10 cursor-pointer"
+                                  : "text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 cursor-pointer"
                               }`}
                               title={
                                 isSelf
-                                  ? "No puede eliminar su propia cuenta"
-                                  : "Eliminar cuenta (borrado definitivo)"
+                                  ? "No puede inhabilitar su propia cuenta"
+                                  : "Inhabilitar cuenta (borrado lógico)"
                               }
                             >
-                              <Trash2 size={14} />
+                              <PowerOff size={14} />
                             </button>
                           )}
                         </div>
@@ -828,14 +828,14 @@ export default function Administradores() {
         </div>
       )}
 
-      {/* Confirm Delete Modal (borrado real, solo SUPER_ADMIN) */}
+      {/* Confirm Inhabilitar Modal (borrado lógico, solo SUPER_ADMIN) */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
-        title="¿Eliminar cuenta de administrador?"
-        description={`Se eliminará definitivamente la cuenta de ${confirmDialog.admin?.nombre} (${confirmDialog.admin?.usuario}). Esta operación no es reversible; los registros de auditoría asociados se conservan conforme a la norma ISO 27001.`}
-        confirmLabel="Eliminar Cuenta"
+        title="¿Inhabilitar cuenta de administrador?"
+        description={`La cuenta de ${confirmDialog.admin?.nombre} (${confirmDialog.admin?.usuario}) quedará inactiva y no podrá iniciar sesión. No se borra ningún dato: la cuenta y sus registros de auditoría se conservan conforme a la norma ISO 27001.`}
+        confirmLabel="Inhabilitar Cuenta"
         isDestructive
-        onConfirm={handleEliminarAdmin}
+        onConfirm={handleInhabilitarAdmin}
         onCancel={() => setConfirmDialog({ isOpen: false, admin: null })}
       />
     </div>

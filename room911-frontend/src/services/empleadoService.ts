@@ -53,6 +53,12 @@ export const empleadoService = {
     return response.data.map(mapEmpleado);
   },
 
+  /** Cargos distintos de los empleados activos (para el desplegable del formulario). */
+  async listarCargos(): Promise<string[]> {
+    const response = await api.get("/empleados/cargos");
+    return response.data;
+  },
+
   async listarTodos(): Promise<Employee[]> {
     return this.listar();
   },
@@ -60,6 +66,21 @@ export const empleadoService = {
   async buscarPorId(id: string | number): Promise<Employee> {
     const response = await api.get(`/empleados/${id}`);
     return mapEmpleado(response.data);
+  },
+
+  async buscarPorDocumento(documento: string): Promise<Employee> {
+    const response = await api.get(`/empleados/documento/${encodeURIComponent(documento)}`);
+    return mapEmpleado(response.data);
+  },
+
+  /** La ruta del expediente usa el documento como parámetro; resuelve documento o id numérico (PK). */
+  async resolverReferencia(ref: string | number): Promise<Employee> {
+    try {
+      return await this.buscarPorDocumento(String(ref));
+    } catch (error: any) {
+      if (error?.response?.status === 404) return this.buscarPorId(ref);
+      throw error;
+    }
   },
 
   async guardar(empleado: Partial<Employee>): Promise<Employee> {

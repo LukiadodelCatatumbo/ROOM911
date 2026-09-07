@@ -44,4 +44,14 @@ GROUP BY d.nombre
 ORDER BY d.nombre
 """)
     List<DepartamentoResumenDTO> obtenerResumenDepartamentos();
+
+    @Query(value = """
+SELECT DISTINCT cargo
+FROM empleados
+WHERE activo = true
+AND cargo IS NOT NULL
+AND cargo <> ''
+ORDER BY cargo
+""", nativeQuery = true)
+    List<String> listarCargosDistintos();
 }

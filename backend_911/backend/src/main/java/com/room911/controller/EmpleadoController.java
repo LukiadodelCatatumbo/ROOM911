@@ -51,6 +51,23 @@ public class EmpleadoController {
     }
 
     /**
+     * Buscar empleado por su documento de identidad
+     */
+    @GetMapping("/documento/{documento}")
+    public ResponseEntity<EmpleadoResponseDTO> buscarPorDocumento(
+            @PathVariable String documento){
+        return ResponseEntity.ok(empleadoService.buscarPorDocumento(documento));
+    }
+
+    /**
+     * Listar los cargos distintos de los empleados activos
+     */
+    @GetMapping("/cargos")
+    public List<String> listarCargos(){
+        return empleadoService.listarCargos();
+    }
+
+    /**
      * Buscar empleado por su nombre
      */
     @GetMapping("/nombre/{nombre}")

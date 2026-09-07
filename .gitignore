@@ -20,6 +20,11 @@ target/
 .env.*.local
 !.env.example
 
+# Backups y dumps de base de datos (contienen datos sensibles)
+*.dump
+backup_*.sql
+db/merge_backup_*.sql
+
 # Logs
 *.log
 npm-debug.log*

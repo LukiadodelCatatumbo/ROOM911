@@ -7,10 +7,6 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
-/**
- * Unicidad de usuario/correo: índice único parcial (WHERE activo) gestionado en
- * db/v2_arreglos_seguros.sql, compatible con el borrado lógico.
- */
 @Entity
 @Table(name = "administradores")
 @Getter

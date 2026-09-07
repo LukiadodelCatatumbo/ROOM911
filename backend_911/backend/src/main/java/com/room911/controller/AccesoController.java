@@ -29,6 +29,7 @@ public class AccesoController {
             @Valid @RequestBody AccessQrRequestDTO dto){
         AccessRequestDTO request = AccessRequestDTO.builder()
                 .documento(dto.getCodigoQr())
+                .puerta(dto.getPuerta())
                 .build();
         return ResponseEntity.ok(accessService.validarAcceso(request));
     }

@@ -15,6 +15,7 @@ import {
   Search,
 } from "lucide-react";
 import { departamentoService } from "../services/departamentoService";
+import { adminService } from "../services/adminService";
 import { authService } from "../services/authService";
 import { Department } from "../types";
 import { RestrictionBadge } from "../components/common/Badge";
@@ -46,6 +47,7 @@ export default function Departamentos() {
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [responsable, setResponsable] = useState("");
+  const [responsables, setResponsables] = useState<string[]>([]);
   const [nivelRestriccion, setNivelRestriccion] = useState<
     "BAJA" | "MEDIA" | "ALTA" | "CRITICA"
   >("BAJA");
@@ -89,6 +91,19 @@ export default function Departamentos() {
 
   useEffect(() => {
     loadDepartments();
+    // Catálogo de responsables técnicos: administradores activos en la base de datos
+    adminService
+      .listar()
+      .then((admins) =>
+        setResponsables(
+          admins
+            .filter((a) => a.activo)
+            .map((a) => a.nombre)
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b))
+        )
+      )
+      .catch(() => setResponsables([]));
   }, []);
 
   const filteredDepartments = departments.filter((dept) => {
@@ -148,6 +163,57 @@ export default function Departamentos() {
     setDrawerOpen(true);
   };
 
+  const nombreYaExiste = (valor: string): boolean =>
+    departments.some(
+      (d) =>
+        d.activo !== false &&
+        d.nombre.trim().toLowerCase() === valor.trim().toLowerCase() &&
+        (!editingDept || d.id !== editingDept.id)
+    );
+
+  // Validación de "nombre de área verdadero": formato y vocabulario propio
+  // de áreas funcionales de planta farmacéutica (evita textos vacuos como
+  // "agua" o "lo que sea").
+  const FORMATO_NOMBRE_AREA = /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ][a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s.\-()&/,]*$/;
+  const terminosArea = [
+    "sala", "laboratorio", "lab", "almacen", "bodega", "produccion", "control",
+    "calidad", "empaque", "envasado", "embotellado", "formulacion", "granel",
+    "cuarentena", "dispensario", "dispensacion", "esteril", "limpia", "camara",
+    "fria", "refrigeracion", "congelacion", "oficina", "administracion",
+    "gerencia", "recursos", "humanos", "logistica", "despacho", "distribucion",
+    "recepcion", "investigacion", "desarrollo", "mantenimiento", "utilidades",
+    "microbiologia", "fisicoquimica", "pesaje", "acondicionamiento",
+    "estabilizacion", "cuarto", "zona", "area", "muelle", "purificacion",
+    "sintesis", "steril", "gowning", "desrobing", "archivo", "capacitacion",
+    "comedor", "vestuario", "servicio", "servicios",
+  ];
+  // Coincidencia por prefijo (\b término) para aceptar plurales: "Salas", "Oficinas", "Zonas"...
+  const TERMINOS_AREA_REGEX = new RegExp(`\\b(${terminosArea.join("|")})`);
+  const normalizarTexto = (t: string) =>
+    t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const validarNombreArea = (valor: string): string | undefined => {
+    const v = valor.trim();
+    if (!v) return "El nombre del área o departamento es obligatorio.";
+    if (v.length < 2 || v.length > 60)
+      return "El nombre debe tener entre 2 y 60 caracteres.";
+    if (!FORMATO_NOMBRE_AREA.test(v) || /(.)\1{3,}/.test(v))
+      return "Nombre inválido: debe comenzar con una letra, solo se permiten letras, números, espacios y signos básicos ( . - ( ) & / , ), sin caracteres repetidos en exceso.";
+    if (!TERMINOS_AREA_REGEX.test(normalizarTexto(v)))
+      return "El nombre debe corresponder a un área funcional real de la planta (ej. Sala de Producción Estéril, Laboratorio de Calidad, Almacén de Materias Primas).";
+    if (nombreYaExiste(v))
+      return "Ya existe un área activa con ese nombre. Use la opción Editar para modificarla.";
+    return undefined;
+  };
+
+  // Desplegable con nombres de áreas ya registradas en la base de datos.
+  // En edición se excluye el propio nombre para no sugerirse a sí mismo.
+  const nombresExistentes = departments
+    .filter((d) => d.activo !== false && (!editingDept || d.id !== editingDept.id))
+    .map((d) => d.nombre.trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+
   const validateForm = (): boolean => {
     const errs: DeptErrors = {};
     const textRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\d-]+$/;
@@ -158,10 +224,9 @@ export default function Departamentos() {
       errs.codigo = "El código debe tener entre 2 y 10 caracteres alfanuméricos.";
     }
 
-    if (!nombre.trim()) {
-      errs.nombre = "El nombre del área o departamento es obligatorio.";
-    } else if (nombre.trim().length < 2 || nombre.trim().length > 60) {
-      errs.nombre = "El nombre debe tener entre 2 y 60 caracteres.";
+    const errNombre = validarNombreArea(nombre);
+    if (errNombre) {
+      errs.nombre = errNombre;
     }
 
     if (descripcion.trim().length > 255) {
@@ -452,16 +517,40 @@ export default function Departamentos() {
                 <input
                   type="text"
                   maxLength={60}
+                  list="nombres-areas-existentes"
                   placeholder="Ej. Sala de Producción Estéril A"
                   value={nombre}
                   onChange={(e) => {
                     setNombre(e.target.value);
                     if (errors.nombre) setErrors({ ...errors, nombre: undefined });
+                    if (nombreYaExiste(e.target.value)) {
+                      setErrors((prev) => ({
+                        ...prev,
+                        nombre:
+                          "Ya existe un área activa con ese nombre. Use la opción Editar para modificarla.",
+                      }));
+                    }
+                  }}
+                  onBlur={() => {
+                    const err = validarNombreArea(nombre);
+                    if (err) setErrors((prev) => ({ ...prev, nombre: err }));
                   }}
                   className={`w-full px-3 py-2 bg-background border rounded-md text-xs text-foreground focus:outline-hidden focus:ring-1 ${
-                    errors.nombre ? "border-destructive ring-1 ring-destructive" : "border-border focus:ring-primary"
+                    errors.nombre
+                      ? "border-destructive ring-1 ring-destructive"
+                      : "border-border focus:ring-primary"
                   }`}
                 />
+                <datalist id="nombres-areas-existentes">
+                  {nombresExistentes.map((n) => (
+                    <option key={n} value={n} />
+                  ))}
+                </datalist>
+                {!errors.nombre && nombresExistentes.length > 0 && (
+                  <p className="text-muted-foreground text-[11px] mt-1">
+                    Debe ser un área funcional real (ej. Sala, Laboratorio, Almacén). Nombres registrados en la base de datos; no puede repetirse.
+                  </p>
+                )}
                 {errors.nombre && (
                   <p className="text-destructive text-[11px] mt-1 flex items-center gap-1">
                     <AlertCircle size={12} />
@@ -501,19 +590,28 @@ export default function Departamentos() {
                 <label className="block font-semibold text-foreground mb-1">
                   Responsable Técnico <span className="text-destructive">*</span>
                 </label>
-                <input
-                  type="text"
-                  maxLength={60}
-                  placeholder="Ej. Dra. Carmen López"
+                <select
                   value={responsable}
                   onChange={(e) => {
                     setResponsable(e.target.value);
                     if (errors.responsable) setErrors({ ...errors, responsable: undefined });
                   }}
-                  className={`w-full px-3 py-2 bg-background border rounded-md text-xs text-foreground focus:outline-hidden focus:ring-1 ${
-                    errors.responsable ? "border-destructive ring-1 ring-destructive" : "border-border focus:ring-primary"
-                  }`}
-                />
+                  className="w-full px-3 py-2 bg-background border border-border rounded-md text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                >
+                  <option value="" disabled>
+                    {responsables.length > 0
+                      ? "Seleccione un responsable..."
+                      : "Cargando responsables..."}
+                  </option>
+                  {responsable && !responsables.includes(responsable) && (
+                    <option value={responsable}>{responsable}</option>
+                  )}
+                  {responsables.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
                 {errors.responsable && (
                   <p className="text-destructive text-[11px] mt-1 flex items-center gap-1">
                     <AlertCircle size={12} />

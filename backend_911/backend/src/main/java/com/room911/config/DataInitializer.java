@@ -4,10 +4,12 @@ import com.room911.entity.AccessAttempt;
 import com.room911.entity.Administrador;
 import com.room911.entity.Departamento;
 import com.room911.entity.Empleado;
+import com.room911.entity.PuntoAcceso;
 import com.room911.repository.AccessAttemptRepository;
 import com.room911.repository.AdministradorRepository;
 import com.room911.repository.DepartamentoRepository;
 import com.room911.repository.EmpleadoRepository;
+import com.room911.repository.PuntoAccesoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +30,7 @@ public class DataInitializer implements CommandLineRunner {
     private final EmpleadoRepository empleadoRepository;
     private final AdministradorRepository administradorRepository;
     private final AccessAttemptRepository accessAttemptRepository;
+    private final PuntoAccesoRepository puntoAccesoRepository;
     private final BCryptPasswordEncoder passwordEncoder;
 
     @Value("${room911.seed-password:}")
@@ -53,6 +56,78 @@ public class DataInitializer implements CommandLineRunner {
             );
             departamentoRepository.saveAll(depts);
             log.info("Departamentos sembrados exitosamente ({} creados).", depts.size());
+        }
+
+        // 1b. Puntos de acceso: catálogo físico + franjas horarias (fuente autoritativa
+        // para la validación del backend; el frontend solo los muestra).
+        if (puntoAccesoRepository.count() == 0) {
+            log.info("Sembrando puntos de acceso y franjas horarias...");
+            Departamento prod = departamentoRepository.findByNombre("Producción").orElse(null);
+            Departamento qc = departamentoRepository.findByNombre("Control de Calidad").orElse(null);
+            Departamento ind = departamentoRepository.findByNombre("Investigación y Desarrollo").orElse(null);
+            Departamento alm = departamentoRepository.findByNombre("Almacén y Logística").orElse(null);
+            Departamento adm = departamentoRepository.findByNombre("Administración").orElse(null);
+            Departamento rrhh = departamentoRepository.findByNombre("Recursos Humanos").orElse(null);
+
+            List<PuntoAcceso> puntos = List.of(
+                    PuntoAcceso.builder().codigo("DOOR-COMMON-01").nombre("Torniquete Principal")
+                            .ubicacion("Acceso Peatonal Exterior").nivelRestriccion("BAJA").tipo("TORNIQUETE")
+                            .zonaComun(true).departamento(null)
+                            .nombreHorario("Horario general").horaInicio("06:00").horaFin("22:00")
+                            .activo(true).fechaCreacion(LocalDateTime.now()).build(),
+                    PuntoAcceso.builder().codigo("DOOR-COMMON-02").nombre("Acceso General Comedor & Cafetería")
+                            .ubicacion("Edificio de Servicios").nivelRestriccion("BAJA").tipo("PUERTA_AUTOMATICA")
+                            .zonaComun(true).departamento(null)
+                            .nombreHorario("Comedor y cafetería").horaInicio("07:00").horaFin("18:00")
+                            .activo(true).fechaCreacion(LocalDateTime.now()).build(),
+                    PuntoAcceso.builder().codigo("DOOR-PROD-01").nombre("Esclusa 1: Sala de Producción A")
+                            .ubicacion("Nave Industrial - Planta Baja").nivelRestriccion("ALTA").tipo("ESCLUSA")
+                            .zonaComun(false).departamento(prod)
+                            .nombreHorario("Producción - turno mañana").horaInicio("06:00").horaFin("14:30")
+                            .activo(true).fechaCreacion(LocalDateTime.now()).build(),
+                    PuntoAcceso.builder().codigo("DOOR-PROD-02").nombre("Esclusa 2: Línea de Envasado Primario")
+                            .ubicacion("Nave Industrial - Área Limpia").nivelRestriccion("ALTA").tipo("ESCLUSA")
+                            .zonaComun(false).departamento(prod)
+                            .nombreHorario("Envasado primario").horaInicio("06:00").horaFin("16:00")
+                            .activo(true).fechaCreacion(LocalDateTime.now()).build(),
+                    PuntoAcceso.builder().codigo("DOOR-QC-01").nombre("Lector Biométrico: Lab QC Microbiológico")
+                            .ubicacion("Edificio de Laboratorios - Piso 2").nivelRestriccion("CRITICA_ESTERIL").tipo("BIOMETRICO")
+                            .zonaComun(false).departamento(qc)
+                            .nombreHorario("Laboratorio microbiológico").horaInicio("07:00").horaFin("19:00")
+                            .activo(true).fechaCreacion(LocalDateTime.now()).build(),
+                    PuntoAcceso.builder().codigo("DOOR-QC-02").nombre("Esclusa de Control de Calidad Físico-Químico")
+                            .ubicacion("Edificio de Laboratorios - Piso 1").nivelRestriccion("ALTA").tipo("ESCLUSA")
+                            .zonaComun(false).departamento(qc)
+                            .nombreHorario("Laboratorio físico-químico").horaInicio("07:00").horaFin("19:00")
+                            .activo(true).fechaCreacion(LocalDateTime.now()).build(),
+                    PuntoAcceso.builder().codigo("DOOR-ID-01").nombre("Esclusa Estéril: Lab B-2 Bioequivalencia")
+                            .ubicacion("Área de Bioseguridad Nivel 3").nivelRestriccion("CRITICA_ESTERIL").tipo("BIOMETRICO")
+                            .zonaComun(false).departamento(ind)
+                            .nombreHorario("Investigación y desarrollo").horaInicio("08:00").horaFin("17:30")
+                            .activo(true).fechaCreacion(LocalDateTime.now()).build(),
+                    PuntoAcceso.builder().codigo("DOOR-ALM-01").nombre("Torniquete Muelle de Carga & Recepción")
+                            .ubicacion("Patio de Maniobras").nivelRestriccion("MEDIA").tipo("TORNIQUETE")
+                            .zonaComun(false).departamento(alm)
+                            .nombreHorario("Muelle de carga").horaInicio("05:30").horaFin("20:00")
+                            .activo(true).fechaCreacion(LocalDateTime.now()).build(),
+                    PuntoAcceso.builder().codigo("DOOR-ALM-02").nombre("Almacén de Materias Primas e Insumos")
+                            .ubicacion("Bodega Central").nivelRestriccion("MEDIA").tipo("PUERTA_AUTOMATICA")
+                            .zonaComun(false).departamento(alm)
+                            .nombreHorario("Almacén de insumos").horaInicio("06:00").horaFin("18:00")
+                            .activo(true).fechaCreacion(LocalDateTime.now()).build(),
+                    PuntoAcceso.builder().codigo("DOOR-ADM-01").nombre("Puerta de Acceso: Oficinas Centrales & Gerencia")
+                            .ubicacion("Edificio Corporativo - Piso 3").nivelRestriccion("BAJA").tipo("PUERTA_AUTOMATICA")
+                            .zonaComun(false).departamento(adm)
+                            .nombreHorario("Oficinas centrales").horaInicio("07:00").horaFin("19:00")
+                            .activo(true).fechaCreacion(LocalDateTime.now()).build(),
+                    PuntoAcceso.builder().codigo("DOOR-RRHH-01").nombre("Puerta de Acceso: Talento Humano & Capacitación")
+                            .ubicacion("Edificio Corporativo - Piso 1").nivelRestriccion("BAJA").tipo("PUERTA_AUTOMATICA")
+                            .zonaComun(false).departamento(rrhh)
+                            .nombreHorario("Talento humano").horaInicio("08:00").horaFin("17:00")
+                            .activo(true).fechaCreacion(LocalDateTime.now()).build()
+            );
+            puntoAccesoRepository.saveAll(puntos);
+            log.info("Puntos de acceso sembrados exitosamente ({} creados).", puntos.size());
         }
 
         // 2. Administradores (credenciales definidas por entorno, nunca en el código)

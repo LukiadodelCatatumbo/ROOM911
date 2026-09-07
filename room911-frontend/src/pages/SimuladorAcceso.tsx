@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import {
   ScanLine,
   CheckCircle2,
-  AlertTriangle,
   XCircle,
   RefreshCw,
   ChevronLeft,
@@ -191,10 +190,11 @@ const DEFAULT_TERMINAL_EMPLOYEES: Employee[] = [
 
 export default function SimuladorAcceso() {
   const [employees, setEmployees] = useState<Employee[]>(DEFAULT_TERMINAL_EMPLOYEES);
-  const [selectedEmpId, setSelectedEmpId] = useState("1020304050");
+  const [selectedCargo, setSelectedCargo] = useState("Operador de Envasado Estéril");
   const [selectedDoorId, setSelectedDoorId] = useState("DOOR-PROD-01");
   const [simulating, setSimulating] = useState(false);
   const [recentLogs, setRecentLogs] = useState<SimulationLog[]>([]);
+  // Accesos vigentes por colaborador + punto (clave `${empleadoId}::${puntoId}`).
   const [accessGrants, setAccessGrants] = useState<Record<string, AccessGrant>>({});
 
   // Control de horario para probar el acceso con una hora específica.
@@ -202,13 +202,13 @@ export default function SimuladorAcceso() {
   const [simulatedTime, setSimulatedTime] = useState("09:00");
 
   const [result, setResult] = useState<{
-    status: "IDLE" | "SCANNING" | "CONCEDIDO" | "DENEGADO" | "ERROR_SENSOR";
+    status: "IDLE" | "SCANNING" | "CONCEDIDO" | "DENEGADO";
     mensaje: string;
     employeeName?: string;
     details?: string;
   }>({
     status: "IDLE",
-    mensaje: "Terminal lista para lectura de credencial.",
+    mensaje: "Terminal lista para validación de acceso.",
   });
 
   // Physical Access Points linked to departments & restriction levels
@@ -320,18 +320,68 @@ export default function SimuladorAcceso() {
         const emps = await empleadoService.listarTodos();
         if (emps && emps.length > 0) {
           setEmployees(emps);
-          setSelectedEmpId(emps[0].id);
+          if (emps[0]?.cargo) setSelectedCargo(emps[0].cargo);
         }
       } catch {
-        // Modo terminal público / sin sesión activa: utiliza DEFAULT_TERMINAL_EMPLOYEES
+        // Sin sesión o sin conexión: modo demo con colaboradores locales.
       }
     };
     init();
   }, []);
 
-  const selectedEmployee = employees.find((e) => e.id === selectedEmpId);
+  // Cargos según los empleados cargados (BD con sesión, demo sin sesión).
+  const cargos = [
+    ...new Set(
+      employees.map((e) => e.cargo).filter((c) => c && c.trim() !== "")
+    ),
+  ];
+
+  // Colaborador representante del cargo (para credencial y departamento).
+  const selectedEmployee =
+    employees.find((e) => e.cargo === selectedCargo) ?? employees[0];
+
+  // Si el cargo seleccionado deja de existir (recarga de datos), usa el primero.
+  useEffect(() => {
+    if (cargos.length > 0 && !cargos.includes(selectedCargo)) {
+      setSelectedCargo(cargos[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employees]);
+
+  // Puntos asignados al colaborador (su departamento + zona común) primero;
+  // el resto se sigue mostrando para probar denegaciones: el servidor decide.
+  const assignedPoints = selectedEmployee
+    ? accessPoints.filter(
+        (p) =>
+          p.departamento === "Zona Común" ||
+          p.departamento.toLowerCase() ===
+            selectedEmployee.departamento.toLowerCase()
+      )
+    : accessPoints;
+  const otherPoints = accessPoints.filter(
+    (ap) => !assignedPoints.some((p) => p.id === ap.id)
+  );
+  const filteredAccessPoints = assignedPoints;
+
+  // Si el punto seleccionado no pertenece al cargo, auto-seleccionar el primero asignado.
+  useEffect(() => {
+    if (
+      filteredAccessPoints.length > 0 &&
+      !filteredAccessPoints.some((p) => p.id === selectedDoorId)
+    ) {
+      setSelectedDoorId(filteredAccessPoints[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCargo, employees]);
+
   const selectedAccessPoint =
-    accessPoints.find((p) => p.id === selectedDoorId) || accessPoints[0];
+    accessPoints.find((p) => p.id === selectedDoorId) ||
+    filteredAccessPoints[0] ||
+    accessPoints[0];
+
+  // Acceso ya vigente para esta combinación colaborador + punto.
+  const currentGrant =
+    accessGrants[`${selectedEmployee?.id}::${selectedDoorId}`];
 
   const accessSchedule =
     ACCESS_POINT_SCHEDULES[selectedAccessPoint.id] || DEFAULT_ACCESS_SCHEDULE;
@@ -343,9 +393,10 @@ export default function SimuladorAcceso() {
     selectedEmployee?.activo ??
     true;
 
+  // Paridad con el backend (PuntoAcceso.zonaComun): solo la zona común
+  // es de acceso general; ADM/RRHH exigen pertenecer al departamento.
   const isCommonZone =
-    selectedAccessPoint.departamento === "Zona Común" ||
-    selectedAccessPoint.nivelRestriccion === "BAJA";
+    selectedAccessPoint.departamento === "Zona Común";
 
   const departmentMatches =
     isCommonZone ||
@@ -362,13 +413,13 @@ export default function SimuladorAcceso() {
     return timeToCheck >= schedule.horaInicio && timeToCheck <= schedule.horaFin;
   };
 
-  const handleSimulate = async (forceOutcome?: "ERROR_SENSOR") => {
-    if (!selectedEmployee && !forceOutcome) return;
+  const handleSimulate = async () => {
+    if (!selectedEmployee) return;
 
     setSimulating(true);
     setResult({
       status: "SCANNING",
-      mensaje: "Procesando lectura de credencial QR...",
+      mensaje: "Verificando punto de acceso del colaborador...",
     });
 
     const now = new Date();
@@ -388,64 +439,38 @@ export default function SimuladorAcceso() {
       ? `${simulatedTime}:00 (Simulada)`
       : systemTimeStr;
 
-    // Pequeño retardo para emular procesamiento de hardware óptico
+    // Pequeño retardo para emular procesamiento del punto de acceso
     setTimeout(async () => {
-      setSimulating(false);
-
       const targetEmp = selectedEmployee;
-      if (!targetEmp && !forceOutcome) return;
+      if (!targetEmp) {
+        setSimulating(false);
+        return;
+      }
 
-      const empIdKey = targetEmp?.id || "UNKNOWN";
+      const empIdKey = targetEmp.id;
       const empName = targetEmp
         ? `${targetEmp.nombre} ${targetEmp.apellido}`
         : "Colaborador";
 
-      const empDept = targetEmp?.departamento || "Sin asignar";
+      const empDept = targetEmp.departamento || "Sin asignar";
       const schedule =
         ACCESS_POINT_SCHEDULES[selectedAccessPoint.id] || DEFAULT_ACCESS_SCHEDULE;
+      const credencial =
+        targetEmp.codigoQr || targetEmp.documentoIdentidad || targetEmp.id;
 
-      if (forceOutcome === "ERROR_SENSOR") {
-        setResult({
-          status: "ERROR_SENSOR",
-          mensaje: "Falla de Lectura en Sensor Óptico",
-          details:
-            "El código QR presenta distorsión óptica o baja reflectancia. Por favor reintente la lectura.",
-        });
-        toast.error("Error de lectura en sensor biométrico");
-
-        if (targetEmp) {
-          setRecentLogs((prev) => [
-            {
-              id: `SIM-${Date.now()}`,
-              hora: effectiveTimeStr,
-              empleadoNombre: empName,
-              empleadoId: empIdKey,
-              empleadoDept: empDept,
-              puertaNombre: selectedAccessPoint.nombre,
-              puertaDept: selectedAccessPoint.departamento,
-              resultado: "ERROR_SENSOR",
-              motivo: "Falla de lectura en sensor",
-              horaLimite: schedule.horaFin,
-            },
-            ...prev,
-          ]);
-        }
-        return;
-      }
-
-      if (!targetEmp) return;
-
-      const previousGrant = accessGrants[empIdKey];
-      if (previousGrant) {
-        const duplicateAccessMessage = `Acceso ya concedido a las ${previousGrant.hora} en ${previousGrant.puertaNombre}.`;
-
+      // Acceso ya vigente para este colaborador en este mismo punto:
+      // se informa sin volver a validar ni duplicar la auditoría.
+      const grantKey = `${empIdKey}::${selectedDoorId}`;
+      const existingGrant = accessGrants[grantKey];
+      if (existingGrant) {
+        setSimulating(false);
         setResult({
           status: "DENEGADO",
           employeeName: empName,
-          mensaje: "Error: acceso ya concedido",
-          details: `${duplicateAccessMessage} No se puede procesar otra solicitud para este colaborador.`,
+          mensaje: "Ya tiene acceso permitido",
+          details: `Acceso concedido a las ${existingGrant.hora} en ${existingGrant.puertaNombre}. No se necesita validar de nuevo.`,
         });
-        toast.error("Error de acceso: el colaborador ya tiene un acceso concedido");
+        toast.warning("Este colaborador ya tiene acceso permitido en este punto");
 
         setRecentLogs((prev) => [
           {
@@ -457,13 +482,70 @@ export default function SimuladorAcceso() {
             puertaNombre: selectedAccessPoint.nombre,
             puertaDept: selectedAccessPoint.departamento,
             resultado: "DENEGADO",
-            motivo: `Solicitud repetida: ${duplicateAccessMessage}`,
+            motivo: `Acceso repetido: ya permitido desde las ${existingGrant.hora}`,
             horaLimite: schedule.horaFin,
           },
           ...prev,
         ]);
         return;
       }
+
+      // =========================================================================
+      // VEREDICTO DEL SERVIDOR (autoritativo: valida punto, horario y zona
+      // contra el catálogo de puntos_acceso en America/Bogota).
+      // =========================================================================
+      try {
+        const veredicto = await accesoService.validarAcceso(credencial, selectedDoorId);
+        setSimulating(false);
+        const concedido = veredicto.permitido;
+
+        setResult({
+          status: concedido ? "CONCEDIDO" : "DENEGADO",
+          employeeName: veredicto.empleadoNombre || empName,
+          mensaje: veredicto.mensaje,
+          details: veredicto.puntoCodigo
+            ? `${veredicto.puntoCodigo} · Veredicto del servidor.`
+            : "Veredicto del servidor.",
+        });
+        if (concedido) {
+          setAccessGrants((prev) => ({
+            ...prev,
+            [grantKey]: {
+              hora: effectiveTimeStr,
+              puertaNombre: veredicto.puerta || selectedAccessPoint.nombre,
+            },
+          }));
+          toast.success("Acceso concedido por el servidor");
+        } else {
+          toast.error(veredicto.mensaje);
+        }
+
+        setRecentLogs((prev) => [
+          {
+            id: `SIM-${Date.now()}`,
+            hora: effectiveTimeStr,
+            empleadoNombre: veredicto.empleadoNombre || empName,
+            empleadoId: empIdKey,
+            empleadoDept: veredicto.departamento || empDept,
+            puertaNombre: veredicto.puerta || selectedAccessPoint.nombre,
+            puertaDept: selectedAccessPoint.departamento,
+            resultado: veredicto.resultado,
+            motivo: veredicto.mensaje,
+            horaLimite: schedule.horaFin,
+          },
+          ...prev,
+        ]);
+        return;
+      } catch {
+        toast.warning("Sin conexión con el backend: se aplica validación local.");
+      }
+
+      setSimulating(false);
+
+      // =========================================================================
+      // FALLBACK LOCAL (solo sin conexión): replica las reglas del servidor
+      // para demo/offline. El resumen superior ya lo advierte.
+      // =========================================================================
 
       // =========================================================================
       // 1. REGLA DE CREDENCIAL ACTIVA
@@ -561,34 +643,21 @@ export default function SimuladorAcceso() {
       }
 
       // =========================================================================
-      // 4. ACCESO CONCEDIDO
+      // 4. ACCESO CONCEDIDO (fallback local)
       // =========================================================================
       setResult({
         status: "CONCEDIDO",
         employeeName: empName,
-        mensaje: "Acceso autorizado",
+        mensaje: "Acceso autorizado (validación local)",
         details: isCommonZone
           ? `Acceso permitido a zona común: ${selectedAccessPoint.nombre}.`
           : `Acceso permitido para ${empDept}.`,
       });
+      toast.success("Acceso concedido (validación local)");
       setAccessGrants((prev) => ({
         ...prev,
-        [empIdKey]: {
-          hora: effectiveTimeStr,
-          puertaNombre: selectedAccessPoint.nombre,
-        },
+        [grantKey]: { hora: effectiveTimeStr, puertaNombre: selectedAccessPoint.nombre },
       }));
-      toast.success("Acceso concedido exitosamente");
-
-      // Notificar al backend de auditoría
-      try {
-        await accesoService.validarAcceso(
-          targetEmp.codigoQr || targetEmp.documentoIdentidad || targetEmp.id,
-          selectedAccessPoint.nombre
-        );
-      } catch {
-        // En caso de modo offline
-      }
 
       setRecentLogs((prev) => [
         {
@@ -632,103 +701,17 @@ export default function SimuladorAcceso() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-6xl mx-auto w-full p-4 sm:p-6 space-y-6">
-        {/* Row 1: Dual Top Cards (Terminal Scanner + Controls Console) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* Left Card: Terminal Scanner Simulation (5 cols on lg) */}
-          <div className="lg:col-span-5 bg-card border-2 border-border rounded-2xl p-5 sm:p-6 shadow-2xl flex flex-col items-center justify-between text-center relative overflow-hidden">
-            <div className="absolute top-3 left-4 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-              <span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-            </div>
-
-            <div className="mt-4 mb-3 w-full">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                CONTROL DE ACCESO BIOMÉTRICO
-              </span>
-              <h2 className="text-base font-bold text-foreground mt-0.5 truncate">
-                {selectedAccessPoint.nombre}
-              </h2>
-              <p className="text-[10px] font-mono text-muted-foreground mt-0.5 truncate">
-                {selectedAccessPoint.ubicacion}
-              </p>
-            </div>
-
-            {/* Scanner Optical Viewport */}
-            <div
-              className={`w-52 h-52 sm:w-56 sm:h-56 rounded-2xl border-4 flex flex-col items-center justify-center transition-all duration-300 relative my-2 ${
-                result.status === "SCANNING"
-                  ? "border-sky-400 bg-sky-50 dark:bg-sky-950/30 animate-pulse shadow-lg shadow-sky-500/20"
-                  : result.status === "CONCEDIDO"
-                  ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 shadow-lg shadow-emerald-500/30"
-                  : result.status === "DENEGADO"
-                  ? "border-rose-500 bg-rose-50 dark:bg-rose-950/40 shadow-lg shadow-rose-500/30"
-                  : result.status === "ERROR_SENSOR"
-                  ? "border-amber-500 bg-amber-50 dark:bg-amber-950/40 shadow-lg shadow-amber-500/30"
-                  : "border-border bg-muted"
-              }`}
-            >
-              {result.status === "IDLE" && (
-                <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                  <ScanLine size={44} className="animate-pulse text-sky-400" />
-                  <span className="text-xs font-mono">LISTO PARA ESCANEAR</span>
-                </div>
-              )}
-
-              {result.status === "SCANNING" && (
-                <div className="flex flex-col items-center gap-3 text-sky-400">
-                  <RefreshCw size={40} className="animate-spin" />
-                  <span className="text-xs font-mono font-bold">VALIDANDO QR...</span>
-                </div>
-              )}
-
-              {result.status === "CONCEDIDO" && (
-                <div className="flex flex-col items-center gap-2 text-emerald-400 animate-in zoom-in-90">
-                  <CheckCircle2 size={52} />
-                  <span className="text-sm font-bold font-mono">ACCESO CONCEDIDO</span>
-                </div>
-              )}
-
-              {result.status === "DENEGADO" && (
-                <div className="flex flex-col items-center gap-2 text-rose-400 animate-in zoom-in-90">
-                  <XCircle size={52} />
-                  <span className="text-sm font-bold font-mono">ACCESO DENEGADO</span>
-                </div>
-              )}
-
-              {result.status === "ERROR_SENSOR" && (
-                <div className="flex flex-col items-center gap-2 text-amber-400 animate-in zoom-in-90">
-                  <AlertTriangle size={52} />
-                  <span className="text-sm font-bold font-mono">FALLA DE SENSOR</span>
-                </div>
-              )}
-            </div>
-
-            {/* Mensaje de retroalimentación */}
-            <div className="mt-3 min-h-[56px] w-full flex flex-col items-center justify-center">
-              <p className="font-semibold text-sm text-foreground">{result.mensaje}</p>
-              {result.employeeName && (
-                <p className="text-xs text-primary font-bold mt-0.5">
-                  {result.employeeName}
-                </p>
-              )}
-              {result.details && (
-                <p className="text-[11px] text-muted-foreground mt-1 max-w-xs leading-relaxed">
-                  {result.details}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Right Card: Controls & Access Policy Matrix (7 cols on lg) */}
-          <div className="lg:col-span-7 bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col justify-between space-y-4">
+        {/* Consola de acceso - solo punto asignado al colaborador */}
+        <div className="grid grid-cols-1 gap-6">
+          {/* Right Card: Controls & Access Policy Matrix */}
+          <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col justify-between space-y-4">
             <div>
               <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                 <Zap size={18} className="text-primary" />
                 <span>Consola de Pruebas de Acceso</span>
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Simulación sencilla de lectura de credencial y validación de acceso.
+                El veredicto lo emite el servidor (punto, horario y zona). El resumen inferior es solo una estimación local.
               </p>
             </div>
 
@@ -766,43 +749,69 @@ export default function SimuladorAcceso() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              {/* Employee Selector */}
+              {/* Cargo Selector (según base de datos) */}
               <div>
                 <label className="block text-foreground font-semibold mb-1.5">
-                  Colaborador
+                  Cargo
                 </label>
                 <select
-                  value={selectedEmpId}
-                  onChange={(e) => setSelectedEmpId(e.target.value)}
+                  value={selectedCargo}
+                  onChange={(e) => setSelectedCargo(e.target.value)}
                   className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-xs focus:outline-hidden focus:ring-1 focus:ring-primary"
                 >
-                  {employees.map((emp) => {
-                    const isActivo = emp.permisoAcceso ?? emp.acceso ?? emp.activo ?? true;
+                  {cargos.map((cargo) => {
+                    const rep = employees.find((e) => e.cargo === cargo);
+                    const isActivo = rep?.permisoAcceso ?? rep?.acceso ?? rep?.activo ?? true;
                     return (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.nombre} {emp.apellido} ({isActivo ? "Activo" : "Inactivo"})
+                      <option key={cargo} value={cargo}>
+                        {cargo} ({isActivo ? "Activo" : "Inactivo"})
                       </option>
                     );
                   })}
                 </select>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {selectedEmployee
+                    ? `Departamento: ${selectedEmployee.departamento}.`
+                    : "Seleccione un cargo para ver sus puntos permitidos."}
+                </p>
               </div>
 
-              {/* Door Selector */}
+              {/* Door Selector - todos los puntos; el servidor autoriza o deniega */}
               <div>
                 <label className="block text-foreground font-semibold mb-1.5">
-                  Punto de acceso
+                  Punto de acceso a probar
                 </label>
                 <select
                   value={selectedDoorId}
                   onChange={(e) => setSelectedDoorId(e.target.value)}
                   className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-xs focus:outline-hidden focus:ring-1 focus:ring-primary"
                 >
-                  {accessPoints.map((door) => (
-                    <option key={door.id} value={door.id}>
-                      {door.nombre}
-                    </option>
-                  ))}
+                  <optgroup
+                    label={
+                      selectedEmployee
+                        ? `Asignados a ${selectedEmployee.departamento} + zona común`
+                        : "Puntos de acceso"
+                    }
+                  >
+                    {assignedPoints.map((door) => (
+                      <option key={door.id} value={door.id}>
+                        {door.nombre}
+                      </option>
+                    ))}
+                  </optgroup>
+                  {otherPoints.length > 0 && (
+                    <optgroup label="Otros puntos (el servidor los denegará)">
+                      {otherPoints.map((door) => (
+                        <option key={door.id} value={door.id}>
+                          {door.nombre}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Puedes probar cualquier punto: el servidor autoriza o deniega según el cargo.
+                </p>
               </div>
             </div>
 
@@ -810,7 +819,7 @@ export default function SimuladorAcceso() {
             {selectedEmployee && selectedAccessPoint && (
               <div className="p-4 rounded-xl bg-muted border border-border space-y-3 text-xs">
                 <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
-                  <span className="font-semibold text-foreground">Resumen de acceso</span>
+                  <span className="font-semibold text-foreground">Resumen de acceso (estimación local)</span>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                     !isEmployeeActive || !departmentMatches
                       ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
@@ -822,8 +831,8 @@ export default function SimuladorAcceso() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <span className="text-muted-foreground block">Colaborador</span>
-                    <p className="font-medium text-foreground">{selectedEmployee.nombre} {selectedEmployee.apellido}</p>
+                    <span className="text-muted-foreground block">Cargo</span>
+                    <p className="font-medium text-foreground">{selectedCargo}</p>
                     <p className="text-[10px] text-muted-foreground">{selectedEmployee.departamento}</p>
                   </div>
                   <div>
@@ -844,27 +853,54 @@ export default function SimuladorAcceso() {
                     ? `El colaborador no tiene autorización para ${selectedAccessPoint.departamento}.`
                     : `El acceso está disponible dentro del horario configurado.`}
                 </p>
+                {currentGrant && (
+                  <p className="pt-2 border-t border-border text-emerald-500 dark:text-emerald-400 font-semibold">
+                    Acceso vigente desde las {currentGrant.hora} en este punto: si valida de nuevo se informará que ya tiene acceso permitido.
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="pt-1 space-y-2.5">
+            {/* Resultado de la validación */}
+            {result.status !== "IDLE" && (
+              <div
+                className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
+                  result.status === "CONCEDIDO"
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                    : result.status === "DENEGADO"
+                    ? "bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400"
+                    : "bg-sky-500/10 border-sky-500/30 text-sky-600 dark:text-sky-400"
+                }`}
+              >
+                {result.status === "CONCEDIDO" ? (
+                  <CheckCircle2 size={16} className="shrink-0 mt-0.5" />
+                ) : result.status === "DENEGADO" ? (
+                  <XCircle size={16} className="shrink-0 mt-0.5" />
+                ) : (
+                  <RefreshCw size={16} className="shrink-0 mt-0.5 animate-spin" />
+                )}
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground text-xs">
+                    {result.employeeName ? `${result.mensaje} — ${result.employeeName}` : result.mensaje}
+                  </p>
+                  {result.details && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                      {result.details}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Action Button */}
+            <div className="pt-1">
               <button
                 onClick={() => handleSimulate()}
                 disabled={simulating}
                 className="w-full py-3 bg-primary hover:bg-primary/90 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 cursor-pointer"
               >
                 <ScanLine size={16} />
-                <span>Simular Lectura de Credencial QR</span>
-              </button>
-
-              <button
-                onClick={() => handleSimulate("ERROR_SENSOR")}
-                disabled={simulating}
-                className="w-full py-2.5 bg-muted hover:bg-muted/80 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-              >
-                <AlertTriangle size={15} />
-                  <span>Simular error de lectura</span>
+                <span>Simular Validación de Acceso</span>
               </button>
             </div>
           </div>
@@ -908,7 +944,7 @@ export default function SimuladorAcceso() {
               <Terminal size={32} className="text-muted-foreground/50 animate-pulse" />
               <p className="text-xs font-semibold text-muted-foreground">Terminal en espera de lecturas</p>
               <p className="text-[11px] text-muted-foreground max-w-md">
-                Seleccione un colaborador y punto de control en la consola superior para ejecutar y auditar pruebas de acceso en tiempo real.
+                Seleccione un cargo y punto de control en la consola superior para ejecutar y auditar pruebas de acceso en tiempo real.
               </p>
             </div>
           ) : (

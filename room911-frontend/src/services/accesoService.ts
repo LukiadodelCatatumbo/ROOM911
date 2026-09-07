@@ -8,6 +8,8 @@ export interface ValidateAccessResponse {
   empleadoNombre?: string;
   empleadoId?: string;
   departamento?: string;
+  puntoCodigo?: string;
+  puerta?: string;
   timestamp: string;
 }
 
@@ -27,16 +29,20 @@ export const accesoService = {
     URL.revokeObjectURL(url);
   },
 
+  /** Valida contra el servidor (fuente autoritativa: punto, horario y zona). */
   async validarAcceso(documento: string, puerta: string = "Puerta Principal"): Promise<ValidateAccessResponse> {
     const response = await api.post("/acceso", { documento, puerta });
     const data = response.data;
+    const permitido = data.permitido ?? (data.estado === "CONCEDIDO");
     return {
-      permitido: data.permitido ?? (data.estado === "CONCEDIDO"),
-      resultado: (data.estado as AccessResult) || (data.permitido ? "CONCEDIDO" : "DENEGADO"),
-      mensaje: data.mensaje || (data.permitido ? "Acceso autorizado" : "Acceso no autorizado"),
+      permitido,
+      resultado: (data.resultado as AccessResult) || (data.estado as AccessResult) || (permitido ? "CONCEDIDO" : "DENEGADO"),
+      mensaje: data.mensaje || (permitido ? "Acceso autorizado" : "Acceso no autorizado"),
       empleadoNombre: data.nombreEmpleado || (data.empleado?.nombre ? `${data.empleado.nombre} ${data.empleado.apellido || ""}` : undefined),
       empleadoId: data.documento || data.empleado?.codigoQr || documento,
       departamento: data.departamento || data.empleado?.departamento?.nombre,
+      puntoCodigo: data.puntoCodigo,
+      puerta: data.puerta,
       timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
     };
   },

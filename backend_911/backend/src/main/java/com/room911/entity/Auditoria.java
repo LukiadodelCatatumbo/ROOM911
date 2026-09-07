@@ -37,9 +37,6 @@ public class Auditoria {
     @Column(nullable = false, length = 100)
     private String accion;
 
-    /**
-     * Descripcion detallada
-     */
     @Column(length = 500)
     private String descripcion;
 

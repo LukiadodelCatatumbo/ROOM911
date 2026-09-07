@@ -33,6 +33,7 @@ export default function EmpleadoFormDrawer({
   const [email, setEmail] = useState("");
   const [departamento, setDepartamento] = useState("");
   const [cargo, setCargo] = useState("");
+  const [cargos, setCargos] = useState<string[]>([]);
   const [permisoAcceso, setPermisoAcceso] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -54,6 +55,19 @@ export default function EmpleadoFormDrawer({
     };
     fetchDepts();
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchCargos = async () => {
+      try {
+        setCargos(await empleadoService.listarCargos());
+      } catch {
+        // Sin catálogo de cargos el formulario cae al modo texto libre
+        setCargos([]);
+      }
+    };
+    fetchCargos();
+  }, [isOpen]);
 
   useEffect(() => {
     if (employee) {
@@ -373,21 +387,26 @@ export default function EmpleadoFormDrawer({
             <label className="block font-semibold text-foreground mb-1">
               Cargo / Ocupación <span className="text-destructive">*</span>
             </label>
-            <input
-              type="text"
-              maxLength={50}
-              placeholder="Ej. Jefa de Línea Estéril"
+            <select
               value={cargo}
               onChange={(e) => {
                 setCargo(e.target.value);
                 if (errors.cargo) setErrors({ ...errors, cargo: undefined });
               }}
-              className={`w-full px-3 py-2 bg-background border rounded-md text-xs text-foreground focus:outline-hidden focus:ring-1 ${
-                errors.cargo
-                  ? "border-destructive ring-1 ring-destructive"
-                  : "border-border focus:ring-primary"
-              }`}
-            />
+              className="w-full px-3 py-2 bg-background border border-border rounded-md text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+            >
+              <option value="" disabled>
+                {cargos.length > 0 ? "Seleccione un cargo..." : "Cargando cargos..."}
+              </option>
+              {cargo && !cargos.includes(cargo) && (
+                <option value={cargo}>{cargo}</option>
+              )}
+              {cargos.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
             {errors.cargo && (
               <p className="text-destructive text-[11px] mt-1 flex items-center gap-1">
                 <AlertCircle size={12} />

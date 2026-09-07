@@ -2,28 +2,40 @@ package com.room911.service.impl;
 
 import java.net.URI;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.room911.dto.AccessRequestDTO;
 import com.room911.dto.AccessResponseDTO;
 import com.room911.entity.AccessAttempt;
 import com.room911.entity.Empleado;
+import com.room911.entity.PuntoAcceso;
 import com.room911.repository.AccessAttemptRepository;
 import com.room911.repository.EmpleadoRepository;
+import com.room911.repository.PuntoAccesoRepository;
 import com.room911.service.interfaces.AccessService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AccessServiceImpl implements AccessService {
+
+    private static final ZoneId ZONA_HORARIA = ZoneId.of("America/Bogota");
 
     private final EmpleadoRepository empleadoRepository;
     private final AccessAttemptRepository accessAttemptRepository;
+    private final PuntoAccesoRepository puntoAccesoRepository;
 
     @Override
+    @Transactional
     public AccessResponseDTO validarAcceso(AccessRequestDTO dto) {
 
         String tokenOValor = extraerValorUtil(dto.getDocumento());
@@ -36,6 +48,7 @@ public class AccessServiceImpl implements AccessService {
 
             return AccessResponseDTO.builder()
                     .permitido(false)
+                    .resultado("DENEGADO")
                     .mensaje("Empleado no registrado")
                     .nombreEmpleado(null)
                     .build();
@@ -50,7 +63,8 @@ public class AccessServiceImpl implements AccessService {
             return construirRespuesta(
                     empleado,
                     false,
-                    "Empleado inactivo"
+                    "Empleado inactivo",
+                    null
             );
         }
 
@@ -61,7 +75,75 @@ public class AccessServiceImpl implements AccessService {
             return construirRespuesta(
                     empleado,
                     false,
-                    "Acceso no permitido"
+                    "Acceso no permitido",
+                    null
+            );
+        }
+
+        // =====================================================================
+        // Validación del punto de acceso (fuente autoritativa del servidor).
+        // Si no se informa puerta, se mantiene el comportamiento legado
+        // (solo identidad) por compatibilidad con lectores antiguos.
+        // =====================================================================
+        String puertaSolicitada = dto.getPuerta() != null ? dto.getPuerta().trim() : "";
+        if (!puertaSolicitada.isEmpty()) {
+            Optional<PuntoAcceso> puntoOpt = resolverPunto(puertaSolicitada);
+
+            if (puntoOpt.isEmpty() || Boolean.FALSE.equals(puntoOpt.get().getActivo())) {
+                guardarIntento(empleado, false,
+                        "Punto de acceso no registrado o inactivo (" + puertaSolicitada + ")",
+                        empleado.getDocumento());
+                return construirRespuesta(
+                        empleado,
+                        false,
+                        "Punto de acceso no registrado en el sistema",
+                        null
+                );
+            }
+
+            PuntoAcceso punto = puntoOpt.get();
+
+            if (!cumpleHorario(punto)) {
+                guardarIntento(empleado, false,
+                        "Fuera del horario permitido en " + punto.getNombre()
+                                + " (" + punto.getHoraInicio() + "-" + punto.getHoraFin() + ")",
+                        empleado.getDocumento());
+                return construirRespuesta(
+                        empleado,
+                        false,
+                        "Acceso Bloqueado — Fuera de Horario (" + punto.getHoraInicio()
+                                + " a " + punto.getHoraFin() + ")",
+                        punto
+                );
+            }
+
+            if (!zonaAutorizada(empleado, punto)) {
+                String zonaPunto = punto.getDepartamento() != null
+                        ? punto.getDepartamento().getNombre()
+                        : "zona general";
+                guardarIntento(empleado, false,
+                        "Sin autorización para " + punto.getNombre() + " (" + zonaPunto + ")",
+                        empleado.getDocumento());
+                return construirRespuesta(
+                        empleado,
+                        false,
+                        "Acceso Bloqueado — Zona No Autorizada",
+                        punto
+                );
+            }
+
+            guardarIntento(
+                    empleado,
+                    true,
+                    "Acceso permitido: " + punto.getNombre(),
+                    empleado.getDocumento()
+            );
+
+            return construirRespuesta(
+                    empleado,
+                    true,
+                    "Acceso autorizado: " + punto.getNombre(),
+                    punto
             );
         }
 
@@ -75,7 +157,8 @@ public class AccessServiceImpl implements AccessService {
         return construirRespuesta(
                 empleado,
                 true,
-                "Acceso permitido, bienvenido"
+                "Acceso permitido, bienvenido",
+                null
         );
     }
 
@@ -163,10 +246,12 @@ public class AccessServiceImpl implements AccessService {
     private AccessResponseDTO construirRespuesta(
             Empleado empleado,
             Boolean permitido,
-            String mensaje) {
+            String mensaje,
+            PuntoAcceso punto) {
 
         return AccessResponseDTO.builder()
                 .permitido(permitido)
+                .resultado(permitido ? "CONCEDIDO" : "DENEGADO")
                 .mensaje(mensaje)
                 .nombreEmpleado(
                         empleado.getNombre() + " " + empleado.getApellido())
@@ -175,7 +260,69 @@ public class AccessServiceImpl implements AccessService {
                 .departamento(
                         empleado.getDepartamento() != null ? empleado.getDepartamento().getNombre() : "General")
                 .activo(empleado.getActivo())
+                .puntoCodigo(punto != null ? punto.getCodigo() : null)
+                .puerta(punto != null ? punto.getNombre() : null)
                 .build();
+    }
+
+    /**
+     * Resuelve el punto por código estable (DOOR-PROD-01, insensible a
+     * mayúsculas) o por nombre exacto para compatibilidad con clientes
+     * que aún envían el nombre visible.
+     */
+    private Optional<PuntoAcceso> resolverPunto(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return Optional.empty();
+        }
+        String limpio = valor.trim();
+        Optional<PuntoAcceso> porCodigo = puntoAccesoRepository.findByCodigo(limpio);
+        if (porCodigo.isEmpty()) {
+            porCodigo = puntoAccesoRepository.findByCodigo(limpio.toUpperCase());
+        }
+        if (porCodigo.isPresent()) {
+            return porCodigo;
+        }
+        return puntoAccesoRepository.findByNombre(limpio);
+    }
+
+    /**
+     * Verifica la franja horaria del punto en America/Bogota.
+     * Soporta turnos nocturnos que cruzan la medianoche (inicio > fin).
+     * Ante configuración ilegible, niega por seguridad (fail-closed).
+     */
+    private boolean cumpleHorario(PuntoAcceso punto) {
+        if (punto.getHoraInicio() == null || punto.getHoraInicio().isBlank()
+                || punto.getHoraFin() == null || punto.getHoraFin().isBlank()) {
+            return true;
+        }
+        try {
+            LocalTime inicio = LocalTime.parse(punto.getHoraInicio().trim());
+            LocalTime fin = LocalTime.parse(punto.getHoraFin().trim());
+            LocalTime ahora = LocalTime.now(ZONA_HORARIA);
+            if (!inicio.isAfter(fin)) {
+                return !ahora.isBefore(inicio) && !ahora.isAfter(fin);
+            }
+            return !ahora.isBefore(inicio) || !ahora.isAfter(fin);
+        } catch (DateTimeParseException e) {
+            log.warn("Franja horaria ilegible en punto {}: {}-{}",
+                    punto.getCodigo(), punto.getHoraInicio(), punto.getHoraFin());
+            return false;
+        }
+    }
+
+    /**
+     * Zona común (o punto sin departamento) = acceso general.
+     * En cualquier otro caso el colaborador debe pertenecer al mismo
+     * departamento del punto (comparación por id, no por nombre).
+     */
+    private boolean zonaAutorizada(Empleado empleado, PuntoAcceso punto) {
+        if (Boolean.TRUE.equals(punto.getZonaComun()) || punto.getDepartamento() == null) {
+            return true;
+        }
+        if (empleado.getDepartamento() == null || punto.getDepartamento().getId() == null) {
+            return false;
+        }
+        return punto.getDepartamento().getId().equals(empleado.getDepartamento().getId());
     }
 
 }

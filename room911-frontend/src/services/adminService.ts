@@ -106,7 +106,8 @@ export const adminService = {
     return mapAdmin(response.data);
   },
 
-  async eliminar(id: string | number): Promise<void> {
+  /** Inhabilitación lógica: el backend nunca borra físicamente la cuenta (trazabilidad ISO 27001). */
+  async inhabilitar(id: string | number): Promise<void> {
     const dbId =
       typeof id === "number" ? id : parseInt(String(id).replace(/\D/g, ""), 10);
     await api.delete(`/administradores/${dbId}`);

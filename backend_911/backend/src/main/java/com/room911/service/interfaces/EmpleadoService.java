@@ -11,6 +11,7 @@ public interface EmpleadoService {
     EmpleadoResponseDTO guardar(EmpleadoDTO dto);
     List<EmpleadoResponseDTO> listar();
     EmpleadoResponseDTO buscarPorId(Long id);
+    EmpleadoResponseDTO buscarPorDocumento(String documento);
     EmpleadoResponseDTO actualizar(Long id, EmpleadoDTO dto);
     void eliminar(Long id);
     void importarCSV(MultipartFile archivo, Long departamento);
@@ -18,4 +19,6 @@ public interface EmpleadoService {
     List<EmpleadoResponseDTO> buscarPorNombre(String nombre);
     List<EmpleadoResponseDTO> buscarPorApellido(String apellido);
     List<EmpleadoResponseDTO> buscarPorDepartamento(Long departamentoId);
+
+    List<String> listarCargos();
 }

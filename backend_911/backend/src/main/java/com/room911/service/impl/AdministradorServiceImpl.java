@@ -78,9 +78,19 @@ public class AdministradorServiceImpl implements AdministradorService {
 
     @Override
     public void eliminar (Long id){
+        // Borrado lógico: se inhabilita la cuenta, nunca se borra físicamente
+        // (la trazabilidad de auditoría exige conservar al administrador).
         Administrador administrador = buscarPorId(id);
-        administradorRepository.delete(administrador);
 
+        if (administrador.getActivo() != null && administrador.getActivo()
+                && "SUPER_ADMIN".equals(administrador.getRol())
+                && administradorRepository.countByRolAndActivoTrue("SUPER_ADMIN") <= 1) {
+            throw new RuntimeException("No se puede inhabilitar al último SUPER_ADMIN activo");
+        }
+
+        administrador.setActivo(false);
+        administrador.setFechaActualizacion(LocalDateTime.now());
+        administradorRepository.save(administrador);
     }
 
     private String normalizarRol(String rol) {

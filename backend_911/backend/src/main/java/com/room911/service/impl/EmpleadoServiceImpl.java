@@ -78,6 +78,23 @@ public class EmpleadoServiceImpl implements EmpleadoService {
     }
 
     @Override
+    public EmpleadoResponseDTO buscarPorDocumento(String documento) {
+        Empleado empleado = empleadoRepository.findByDocumento(documento)
+                .orElseThrow(() -> new RuntimeException("Empleado no encontrado"));
+
+        if (!empleado.getActivo()) {
+            throw new RuntimeException("El empleado se encuentra inactivo");
+        }
+
+        return EmpleadoMapper.toDTO(empleado);
+    }
+
+    @Override
+    public List<String> listarCargos() {
+        return empleadoRepository.listarCargosDistintos();
+    }
+
+    @Override
     public EmpleadoResponseDTO actualizar(Long id, EmpleadoDTO dto) {
         Empleado empleado = empleadoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Empleado no encontrado"));

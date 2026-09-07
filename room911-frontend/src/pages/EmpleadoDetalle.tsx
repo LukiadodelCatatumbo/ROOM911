@@ -49,9 +49,9 @@ export default function EmpleadoDetalle() {
       if (!id) return;
       setLoading(true);
       try {
-        const emp = await empleadoService.buscarPorId(id);
+        const emp = await empleadoService.resolverReferencia(id);
         setEmployee(emp);
-        const logs = await accesoService.listarPorEmpleado(id);
+        const logs = await accesoService.listarPorEmpleado(emp.dbId ?? emp.id);
         setHistory(logs);
       } catch {
         toast.error("Error al cargar expediente de personal");

@@ -7,11 +7,6 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
-
-/**
- * Unicidad de documento/correo: índice único parcial (WHERE activo) gestionado en
- * db/v2_arreglos_seguros.sql, compatible con el borrado lógico.
- */
 @Entity
 @Table(
     name = "empleados",

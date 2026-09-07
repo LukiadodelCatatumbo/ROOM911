@@ -18,4 +18,11 @@ public class AccessResponseDTO {
     private String departamento;
     private Boolean activo;
     private String documento;
+
+    /** Veredicto normalizado para el simulador y lectores. */
+    private String resultado;
+
+    /** Punto validado (código estable y nombre), null si no se solicitó punto. */
+    private String puntoCodigo;
+    private String puerta;
 }
