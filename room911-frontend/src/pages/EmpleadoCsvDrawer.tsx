@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Drawer } from "../components/common/Drawer";
-import { Upload, FileText, CheckCircle2, AlertCircle, AlertTriangle, Check } from "lucide-react";
+import { Upload, FileText, CheckCircle2, AlertCircle, AlertTriangle, Check, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { empleadoService } from "../services/empleadoService";
 import { departamentoService } from "../services/departamentoService";
@@ -24,9 +25,14 @@ interface CsvRowPreview {
   errores: string[];
 }
 
-const CABECERA_ESPERADA = "nombre, apellido, documento, correo, cargo";
+/** Solo se aceptan Excel y texto plano. El CSV ya no es un formato válido. */
+const EXTENSION_VALIDA = /\.(xlsx|xls|txt)$/i;
+const TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024;
 
-/** Divide una línea CSV respetando comillas simples dobles. */
+const CABECERA_COLUMNAS = ["nombre", "apellido", "documento", "correo", "cargo"];
+const CABECERA_ESPERADA = CABECERA_COLUMNAS.join(", ");
+
+/** Divide una línea de texto delimitada por comas respetando comillas dobles. */
 const parsearLineaCsv = (linea: string): string[] => {
   const campos: string[] = [];
   let actual = "";
@@ -46,6 +52,51 @@ const parsearLineaCsv = (linea: string): string[] => {
 };
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Valida filas [nombre, apellido, documento, correo, cargo] para la vista previa. */
+const validarFilas = (filas: string[][]): CsvRowPreview[] =>
+  filas.map((celdas, idx) => {
+    const [nombre = "", apellido = "", documento = "", correo = "", cargo = ""] =
+      celdas.map((c) => String(c ?? "").trim());
+    const errores: string[] = [];
+    if (!nombre) errores.push("Nombre requerido");
+    if (!apellido) errores.push("Apellido requerido");
+    if (!documento) errores.push("Documento requerido");
+    if (!correo || !emailRegex.test(correo)) errores.push("Correo inválido");
+    if (!cargo) errores.push("Cargo requerido");
+    return {
+      fila: idx + 2,
+      nombre,
+      apellido,
+      documento,
+      correo,
+      cargo,
+      errores,
+    };
+  });
+
+/** Escapa un valor para serializarlo como campo CSV. */
+const escaparCsv = (valor: string): string =>
+  /[",\n]/.test(valor) ? `"${valor.replace(/"/g, '""')}"` : valor;
+
+/** Genera y descarga la plantilla Excel oficial de carga masiva. */
+const descargarPlantillaExcel = () => {
+  const hoja = XLSX.utils.aoa_to_sheet([
+    CABECERA_COLUMNAS,
+    ["María", "Ruiz", "1020304050", "m.ruiz@pharma911.com", "Operador de Producción"],
+    ["Jorge", "Salazar", "2030405060", "j.salazar@pharma911.com", "Analista de Calidad"],
+  ]);
+  hoja["!cols"] = [
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 16 },
+    { wch: 30 },
+    { wch: 28 },
+  ];
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hoja, "Empleados");
+  XLSX.writeFile(libro, "plantilla_empleados_room911.xlsx");
+};
 
 export function EmpleadoCsvDrawer({
   open,
@@ -81,11 +132,17 @@ export function EmpleadoCsvDrawer({
   const validRows = rows.filter((r) => r.errores.length === 0);
   const errorRows = rows.filter((r) => r.errores.length > 0);
 
-  const procesarArchivo = (file: File) => {
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      toast.error("El archivo debe tener extensión .csv");
+  const mostrarVistaPrevia = (file: File, filas: string[][]) => {
+    if (filas.length === 0) {
+      toast.error("El archivo no contiene registros para importar");
       return;
     }
+    setArchivo(file);
+    setRows(validarFilas(filas));
+    setStep("preview");
+  };
+
+  const procesarTextoPlano = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
       const texto = String(reader.result || "");
@@ -94,30 +151,57 @@ export function EmpleadoCsvDrawer({
         toast.error("El archivo no contiene registros para importar");
         return;
       }
-      const preview: CsvRowPreview[] = lineas.slice(1).map((linea, idx) => {
-        const [nombre, apellido, documento, correo, cargo] = parsearLineaCsv(linea);
-        const errores: string[] = [];
-        if (!nombre) errores.push("Nombre requerido");
-        if (!apellido) errores.push("Apellido requerido");
-        if (!documento) errores.push("Documento requerido");
-        if (!correo || !emailRegex.test(correo)) errores.push("Correo inválido");
-        if (!cargo) errores.push("Cargo requerido");
-        return {
-          fila: idx + 2,
-          nombre,
-          apellido,
-          documento,
-          correo,
-          cargo,
-          errores,
-        };
-      });
-      setArchivo(file);
-      setRows(preview);
-      setStep("preview");
+      mostrarVistaPrevia(
+        file,
+        lineas.slice(1).map(parsearLineaCsv)
+      );
     };
     reader.onerror = () => toast.error("No se pudo leer el archivo");
     reader.readAsText(file);
+  };
+
+  const procesarExcel = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const buffer = reader.result as ArrayBuffer;
+        const libro = XLSX.read(buffer, { type: "array" });
+        const primeraHoja = libro.SheetNames[0];
+        if (!primeraHoja) {
+          toast.error("El archivo Excel no contiene hojas");
+          return;
+        }
+        const datos = XLSX.utils.sheet_to_json<string[]>(
+          libro.Sheets[primeraHoja],
+          { header: 1, defval: "", raw: false }
+        );
+        const filas = datos
+          .slice(1)
+          .filter((f) => f.some((c) => String(c ?? "").trim() !== ""))
+          .map((f) => f.slice(0, 5).map((c) => String(c ?? "")));
+        mostrarVistaPrevia(file, filas);
+      } catch {
+        toast.error("No se pudo leer el archivo Excel");
+      }
+    };
+    reader.onerror = () => toast.error("No se pudo leer el archivo");
+    reader.readAsArrayBuffer(file);
+  };
+
+  const procesarArchivo = (file: File) => {
+    if (!EXTENSION_VALIDA.test(file.name)) {
+      toast.error("Formato no válido: solo se aceptan archivos Excel (.xlsx, .xls) o texto (.txt)");
+      return;
+    }
+    if (file.size > TAMANO_MAXIMO_BYTES) {
+      toast.error("El archivo supera el tamaño máximo de 10MB");
+      return;
+    }
+    if (/\.txt$/i.test(file.name)) {
+      procesarTextoPlano(file);
+    } else {
+      procesarExcel(file);
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,9 +218,22 @@ export function EmpleadoCsvDrawer({
     }
     setImportando(true);
     try {
+      // El servidor recibe CSV: se serializan las filas válidas al formato esperado.
+      const contenido = [
+        CABECERA_ESPERADA,
+        ...validRows.map((r) =>
+          [r.nombre, r.apellido, r.documento, r.correo, r.cargo]
+            .map(escaparCsv)
+            .join(",")
+        ),
+      ].join("\r\n");
+      const base = archivo.name.replace(/\.(xlsx|xls|txt)$/i, "");
+      const archivoCsv = new File([contenido], `${base}.csv`, {
+        type: "text/csv;charset=utf-8",
+      });
       const mensaje = await empleadoService.importarCSV(
         Number(departamentoId),
-        archivo
+        archivoCsv
       );
       toast.success("Importación finalizada", {
         description: mensaje || `${validRows.length} empleados enviados al servidor.`,
@@ -149,7 +246,7 @@ export function EmpleadoCsvDrawer({
       onClose();
     } catch (err: any) {
       toast.error(
-        err?.response?.data?.mensaje || "Error al importar el archivo CSV"
+        err?.response?.data?.mensaje || "Error al importar el archivo"
       );
     } finally {
       setImportando(false);
@@ -165,16 +262,25 @@ export function EmpleadoCsvDrawer({
     <Drawer
       open={isDrawerOpen}
       onClose={handleClose}
-      title="Carga Masiva de Empleados (CSV)"
-      subtitle="Importe múltiples credenciales validando la integridad de datos antes de guardar"
+      title="Carga Masiva de Empleados"
+      subtitle="Importe múltiples credenciales desde Excel o texto validando la integridad de datos antes de guardar"
       width={580}
     >
       {step === "upload" ? (
         <div className="p-6 space-y-6">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Suba un archivo <code>.csv</code> delimitado por comas con la cabecera{" "}
+            Suba un archivo <code>Excel (.xlsx, .xls)</code> o <code>texto (.txt)</code> con las columnas{" "}
             <code>{CABECERA_ESPERADA}</code>. Los empleados se crearán en el departamento seleccionado.
           </p>
+
+          <button
+            onClick={descargarPlantillaExcel}
+            type="button"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold border border-primary/40 text-primary rounded-md hover:bg-primary/5 transition-colors cursor-pointer"
+          >
+            <Download size={14} />
+            <span>Descargar plantilla Excel</span>
+          </button>
 
           {/* Selector de departamento destino */}
           <div>
@@ -221,27 +327,27 @@ export function EmpleadoCsvDrawer({
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">
-                Haga clic o arrastre su archivo CSV aquí
+                Haga clic o arrastre su archivo aquí
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Formatos compatibles: .csv UTF-8 (hasta 10MB)
+                Formatos compatibles: Excel (.xlsx, .xls) o texto (.txt), hasta 10MB
               </p>
             </div>
 
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv"
+              accept=".xlsx,.xls,.txt"
               className="sr-only"
               onChange={handleFileSelect}
             />
           </div>
 
-          {/* Expected CSV Header Reference */}
+          {/* Expected Header Reference */}
           <div className="p-4 bg-muted/70 rounded-md border border-border">
             <p className="text-xs font-semibold text-foreground mb-1.5 flex items-center gap-1.5">
               <FileText size={14} className="text-primary" />
-              <span>Estructura de encabezados requerida:</span>
+              <span>Estructura de columnas requerida:</span>
             </p>
             <code className="text-[11px] font-mono text-muted-foreground block bg-white dark:bg-card p-2 rounded-xs border border-border/70 overflow-x-auto">
               {CABECERA_ESPERADA}
