@@ -337,3 +337,33 @@
 
 #### Pendiente (de la auditoría):
 * Flyway con `ddl-auto=validate` (H3), CHECKs de dominio + catálogo de cargos/roles (H4), migración a `timestamptz` (H7), `@UpdateTimestamp` para `fecha_actualizacion` (H10).
+
+---
+
+### 🔒 Fase 16: Remediación de la auditoría general de seguridad y calidad
+* **Fecha:** 2026-09-09
+* **Objetivo:** Atender los hallazgos de la auditoría general del monorepo: 2 críticos de seguridad, 4 altos y los medios de bajo riesgo.
+
+#### Críticos corregidos:
+1. **Superficie pública `/api/acceso/**` protegida:** nuevo `AccesoApiKeyFilter` (API key obligatoria en cabecera `X-Api-Key` contra `ACCESO_API_KEY`, fail-closed con 503 si no está configurada, comparación en tiempo constante y rate limit de 60 req/min por IP). El simulador del frontend envía `VITE_ACCESO_API_KEY`. Variable nueva documentada en los tres `.env.example`, `docker-compose.yml` (guard `:?`), `Dockerfile` del frontend y GUIA/README. Cobertura por tests en `AccesoApiKeyTest`.
+2. **Secreto JWT con fallback commiteado eliminado:** `jwt.secret=${JWT_SECRET:}` y validación fail-fast en `JwtService` (rechaza arranque si falta o tiene menos de 32 bytes). `docker-compose.yml` ya exigía la variable.
+
+#### Altos corregidos:
+3. **`@PreAuthorize` en lecturas sensibles:** `DashboardController` (clase completa), GETs de `AuditoriaController` y `HistorialAccesoController` (alineados con sus escrituras) y GETs de `AdministradorController`.
+4. **Anti fuerza bruta en login:** `RegistroIntentosLogin` bloquea la cuenta 15 min tras 5 fallos (`CuentaBloqueadaException` → HTTP 429); el mensaje de error sigue siendo genérico (anti-enumeración).
+5. **PII a terceros eliminada:** borrado de `utils/qrUtils.js` (código muerto que enviaba el documento del empleado a `api.qrserver.com`); los QR reales ya se generan localmente con `qrcode.react`.
+6. **TypeScript `strict` + `noUnusedLocals/Parameters` activados** en `tsconfig.json`; imports y variables muertas eliminados en 9 archivos.
+
+#### Medios corregidos:
+7. **Excepciones tipadas** (`RecursoNoEncontradoException` 404, `RecursoDuplicadoException` 409, `EstadoInvalidoException` 409, `CuentaBloqueadaException` 429) migradas en todos los services; el fallback de `RuntimeException` ya no clasifica por texto del mensaje y los errores 500 se registran en el log con stacktrace.
+8. **`@Transactional`** a nivel de clase en `EmpleadoServiceImpl`, `AdministradorServiceImpl`, `DepartamentoServiceImpl`, `AuditoriaServiceImpl`, `HistorialAccesoServiceImpl`, `AccessAttemptServiceImpl` (y `readOnly` en `PdfServiceImpl`); `importarCSV` ahora es atómico y valida tamaño, documento (10 dígitos), correo y fila con mensaje específico.
+9. **N+1 eliminado** con `@EntityGraph(attributePaths="departamento")` en los listados de `EmpleadoRepository` (incluido `findAll`).
+10. **Dashboard honesto:** eliminado el KPI `fallasSensor` hardcodeado (la tarjeta ahora muestra la tasa de bloqueo real del día); `successRate` ya no finge 94.2% sin datos; `capacidadMaxima` muestra "Sin definir" cuando el backend no la envía.
+11. **Contrato API limpio:** `ValidateAccessResponse` movida a `types/`; `accesoService` tipado contra los DTOs reales del backend y sin campos defensivos inexistentes (`estado`, `permitido`, `fechaAcceso`...).
+12. **Código muerto y dependencias:** eliminados `components/ui/` (48 archivos shadcn sin uso), `components/figma/` y `utils/`; 39 dependencias removidas de `package.json` (todos los `@radix-ui/*` en uso, `motion`, `react-hook-form`, `date-fns`, `jsqr`, etc.).
+13. **Higiene:** `.idea/` retirado del índice de git; puerto del backend en compose publicado solo en `127.0.0.1`; `.env.example` de backend y frontend completados (`JWT_SECRET`, `ACCESO_API_KEY`, `CORS_ALLOWED_ORIGINS`, nota sobre `VITE_API_URL`).
+14. **Tests reparados:** `AuthControllerTest` no compilaba (usaba `username`/`password` en lugar de `usuario`/`contrasena` del DTO real); corregido y ahora sí se ejecuta. Suite completa: 17 tests en verde.
+
+#### Verificación:
+* `mvn test` (JDK 17 en contenedor) y `pnpm build` (con `strict`) sin errores.
+* Nota: el equipo de desarrollo necesita un JDK completo (con `javac`); con solo JRE 25 el wrapper de Maven no puede compilar.

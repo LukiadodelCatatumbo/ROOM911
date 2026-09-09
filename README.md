@@ -53,7 +53,8 @@ No subas el archivo `.env` al repositorio. Las variables de conexión, puertos y
 
 | Variable | Dónde se usa | Descripción |
 |---|---|---|
-| `JWT_SECRET` | Backend | Clave HS256 para firmar los tokens JWT. **Obligatoria en producción** (32+ caracteres aleatorios); Docker Compose no levanta el backend sin ella. |
+| `JWT_SECRET` | Backend | Clave HS256 para firmar los tokens JWT. **Obligatoria siempre** (32+ caracteres aleatorios): el backend no arranca sin ella y Docker Compose la exige. |
+| `ACCESO_API_KEY` | Backend / Frontend | API key de la superficie pública `/api/acceso/**` (lectores físicos y simulador). **Obligatoria**: sin ella el backend responde 503 en esa ruta. El frontend la envía como cabecera `X-Api-Key` (vía `VITE_ACCESO_API_KEY`). |
 | `ROOM911_SEED_PASSWORD` | Backend | Contraseña inicial de los usuarios sembrados por `DataInitializer`. Si se omite, se genera una aleatoria y se registra una sola vez en el log del backend. |
 | `CORS_ALLOWED_ORIGINS` | Backend | Orígenes permitidos, separados por coma (por defecto `http://localhost:5173`). |
 | `VITE_API_URL` | Frontend | URL base de la API que consume el frontend (por defecto `/api`; en desarrollo local `http://localhost:8080/api`). |
@@ -70,7 +71,7 @@ curl -X POST http://localhost:8080/api/auth/login \
 
 Respuesta exitosa (200): `{ "loginCorrecto": true, "token": "<JWT>", "username": ..., "rol": ... }`. Un fallo de credenciales responde siempre 401 genérico (`Credenciales inválidas`), sin revelar si el usuario existe. El token se envía en las demás peticiones como cabecera `Authorization: Bearer <token>`.
 
-Todos los endpoints de escritura y consulta requieren sesión válida, salvo `POST /api/auth/login` y `POST /api/acceso/**` (terminales lectoras sin sesión). Los roles definidos son:
+Todos los endpoints de escritura y consulta requieren sesión válida, salvo `POST /api/auth/login` y la superficie `/api/acceso/**` (terminales lectoras sin sesión, protegida con API key en la cabecera `X-Api-Key` y rate limit por IP). El login bloquea temporalmente la cuenta tras 5 intentos fallidos en 15 minutos. Los roles definidos son:
 
 | Rol | Permisos principales |
 |---|---|
@@ -94,6 +95,9 @@ CREATE DATABASE reto_room_911;
 
 ```bash
 cd backend_911/backend
+# Obligatorias: sin estas variables el backend no arranca
+export JWT_SECRET=<secreto-de-al-menos-32-caracteres>
+export ACCESO_API_KEY=<apikey-de-los-lectores>
 ./mvnw spring-boot:run
 ```
 

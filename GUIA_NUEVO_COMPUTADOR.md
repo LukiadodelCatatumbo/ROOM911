@@ -57,8 +57,10 @@ DB_USERNAME=postgres
 DB_PASSWORD=<tu contraseña de Postgres>
 DB_HOST_PORT=5432
 
-# Obligatorio (32+ caracteres) o el backend no levanta en compose
+# Obligatorios (32+ caracteres aleatorios cada uno) o el backend no levanta
 JWT_SECRET=<secreto-largo-aleatorio>
+# API key de la superficie pública /api/acceso (lectores y simulador)
+ACCESO_API_KEY=<apikey-larga-aleatoria-distinta-del-secret>
 
 # Contraseña conocida para los admins sembrados (superadmin, j.reyes, a.sanchez).
 # Si se deja vacía, se genera una aleatoria y sale UNA vez en el log del backend.
@@ -93,6 +95,8 @@ docker compose up -d --build
 docker compose up -d db        # solo Postgres
 
 cd backend_911/backend         # terminal 1 (con JDK 17 activo)
+export JWT_SECRET=<secreto-largo-aleatorio>
+export ACCESO_API_KEY=<apikey-larga-aleatoria>
 ./mvnw spring-boot:run
 
 cd room911-frontend            # terminal 2

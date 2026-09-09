@@ -35,6 +35,7 @@ services:
       JPA_FORMAT_SQL: ${JPA_FORMAT_SQL:-false}
       JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (32+ caracteres)}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-28800000}
+      ACCESO_API_KEY: ${ACCESO_API_KEY:?Define ACCESO_API_KEY en el archivo .env (32+ caracteres aleatorios)}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
       ROOM911_SEED_PASSWORD: ${ROOM911_SEED_PASSWORD:-}
       ROOM911_SYNC_SEED_PASSWORD: ${ROOM911_SYNC_SEED_PASSWORD:-false}
@@ -42,7 +43,9 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "${SERVER_PORT:-8080}:8080"
+      # Solo localhost: el frontend accede via proxy nginx y exponerlo en
+      # 0.0.0.0 ampliaria innecesariamente la superficie de ataque.
+      - "127.0.0.1:${SERVER_PORT:-8080}:8080"
 
   frontend:
     build:
@@ -50,6 +53,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_ACCESO_API_KEY: ${ACCESO_API_KEY:-}
         VITE_DEMO_USERNAME: ${VITE_DEMO_USERNAME:-}
         VITE_DEMO_PASSWORD: ${VITE_DEMO_PASSWORD:-}
         VITE_SESSION_TIMEOUT_MINUTES: ${VITE_SESSION_TIMEOUT_MINUTES:-15}
