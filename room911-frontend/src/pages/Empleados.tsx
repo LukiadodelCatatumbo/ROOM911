@@ -1,14 +1,12 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Search,
   Plus,
   Upload,
   Eye,
   Edit2,
-  Trash2,
   QrCode,
-  Filter,
   RefreshCw,
   PowerOff,
   Power,
@@ -28,7 +26,7 @@ import { toast } from "sonner";
 
 export default function Empleados() {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedDept, setSelectedDept] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -53,7 +51,6 @@ export default function Empleados() {
     employee: null,
   });
 
-  const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
   // El backend restringe escrituras a SUPER_ADMIN y ADMIN_ACCESOS (@PreAuthorize)
   const puedeEscribir = authService.puedeGestionarPersonal();

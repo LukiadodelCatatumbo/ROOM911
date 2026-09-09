@@ -90,9 +90,12 @@ export default function Dashboard() {
     ? Math.round((stats.kpis.empleadosActivos / stats.kpis.totalEmpleados) * 100) 
     : 100;
   const totalAccesos = stats.kpis.accesosHoy + stats.kpis.intentosFallidosHoy;
-  const successRate = totalAccesos > 0 
-    ? ((stats.kpis.accesosHoy / totalAccesos) * 100).toFixed(1) 
-    : "94.2";
+  const successRate = totalAccesos > 0
+    ? ((stats.kpis.accesosHoy / totalAccesos) * 100).toFixed(1)
+    : null;
+  const tasaBloqueo = totalAccesos > 0
+    ? Math.round((stats.kpis.intentosFallidosHoy / totalAccesos) * 100)
+    : 0;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto w-full">
@@ -183,13 +186,13 @@ export default function Dashboard() {
             <div className="flex items-center justify-between text-[11px] mb-1.5 font-mono">
               <span className="text-muted-foreground">Efectividad torniquetes</span>
               <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                {successRate}% éxito
+                {successRate !== null ? `${successRate}% éxito` : "Sin datos hoy"}
               </span>
             </div>
             <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
               <div
                 className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, Number(successRate) || 94.2)}%` }}
+                style={{ width: `${successRate !== null ? Math.min(100, Number(successRate)) : 0}%` }}
               />
             </div>
           </div>
@@ -217,30 +220,25 @@ export default function Dashboard() {
 
           <div>
             <div className="flex items-center justify-between text-[11px] mb-1.5 font-mono">
-              <span className="text-muted-foreground">Estado de sensores</span>
+              <span className="text-muted-foreground">Tasa de bloqueo hoy</span>
               <span
                 className={`font-semibold ${
-                  stats.kpis.fallasSensor === 0
+                  tasaBloqueo === 0
                     ? "text-emerald-600 dark:text-emerald-400"
                     : "text-rose-600 dark:text-rose-400"
                 }`}
               >
-                {stats.kpis.fallasSensor === 0
-                  ? "0 fallas (100% operativo)"
-                  : `${stats.kpis.fallasSensor} fallas sensor`}
+                {totalAccesos > 0
+                  ? `${tasaBloqueo}% de ${totalAccesos} intentos`
+                  : "Sin intentos registrados"}
               </span>
             </div>
             <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
-                  stats.kpis.fallasSensor === 0 ? "bg-emerald-500" : "bg-rose-500"
+                  tasaBloqueo === 0 ? "bg-emerald-500" : "bg-rose-500"
                 }`}
-                style={{
-                  width:
-                    stats.kpis.fallasSensor === 0
-                      ? "100%"
-                      : `${Math.min(100, stats.kpis.fallasSensor * 20)}%`,
-                }}
+                style={{ width: `${totalAccesos > 0 ? Math.max(4, tasaBloqueo) : 0}%` }}
               />
             </div>
           </div>

@@ -22,7 +22,7 @@ const mapDepartamento = (d: DepartamentoBackend): Department => ({
   nivelRestriccion: (d.nivelRestriccion as Department["nivelRestriccion"]) || "MEDIA",
   totalEmpleados: d.cantidadEmpleados ?? 0,
   cantidadEmpleados: d.cantidadEmpleados ?? 0,
-  capacidadMaxima: d.capacidadMaxima ?? 50,
+  capacidadMaxima: d.capacidadMaxima,
   activo: d.activo ?? true,
 });
 

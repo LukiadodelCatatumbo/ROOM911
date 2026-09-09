@@ -1,7 +1,11 @@
 import axios from "axios";
 
-export const API_BASE_URL =
-  (import.meta as any).env?.VITE_API_URL || "http://localhost:8080/api";
+const env = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
+
+export const API_BASE_URL = env.VITE_API_URL || "http://localhost:8080/api";
+
+/** API key de la superficie pública /api/acceso (lectores y simulador). */
+const ACCESO_API_KEY = env.VITE_ACCESO_API_KEY || "";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -15,8 +19,11 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
     if (token) {
-      config.headers.set?.("Authorization", `Bearer ${token}`) ||
-        ((config.headers as any)["Authorization"] = `Bearer ${token}`);
+      config.headers.set("Authorization", `Bearer ${token}`);
+    }
+    // El simulador/lector consume /api/acceso sin JWT pero con API key
+    if (ACCESO_API_KEY && config.url?.includes("/acceso")) {
+      config.headers.set("X-Api-Key", ACCESO_API_KEY);
     }
     return config;
   },

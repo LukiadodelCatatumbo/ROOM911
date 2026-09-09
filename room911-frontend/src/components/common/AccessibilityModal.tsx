@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Eye, Type, Sun, Moon, Sparkles, Check } from "lucide-react";
+import { X, Eye, Sun, Moon, Check } from "lucide-react";
 
 interface AccessibilityModalProps {
   open: boolean;

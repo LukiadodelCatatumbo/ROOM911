@@ -80,10 +80,22 @@ export interface DashboardStats {
     empleadosActivos: number;
     accesosHoy: number;
     intentosFallidosHoy: number;
-    fallasSensor: number;
     aforoActual: number;
   };
   accesosPorDia: { dia: string; concedidos: number; denegados: number }[];
   departamentosData: { name: string; value: number; percentage: number; color: string }[];
   ultimosAccesos: AccessEvent[];
+}
+
+/** Respuesta real de POST /api/acceso y POST /api/acceso/qr. */
+export interface ValidateAccessResponse {
+  permitido: boolean;
+  resultado: AccessResult;
+  mensaje: string;
+  empleadoNombre?: string;
+  empleadoId?: string;
+  departamento?: string;
+  puntoCodigo?: string;
+  puerta?: string;
+  timestamp: string;
 }

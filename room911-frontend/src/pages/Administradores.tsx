@@ -30,7 +30,7 @@ interface AdminErrors {
 
 export default function Administradores() {
   const [admins, setAdmins] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedRole, setSelectedRole] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");

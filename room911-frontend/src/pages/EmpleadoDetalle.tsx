@@ -3,16 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
   User,
-  Edit,
   QrCode,
   Download,
-  Calendar,
-  Shield,
-  Clock,
-  ArrowRight,
-  Filter,
-  ShieldAlert,
-  CheckCircle2,
 } from "lucide-react";
 import { empleadoService } from "../services/empleadoService";
 import { accesoService } from "../services/accesoService";
@@ -32,8 +24,6 @@ export default function EmpleadoDetalle() {
   const [history, setHistory] = useState<AccessEntry[]>([]);
   const [variant, setVariant] = useState<"tabs" | "timeline">("tabs");
   const [activeTab, setActiveTab] = useState<"info" | "historial">("info");
-  const [dateFrom, setDateFrom] = useState("2024-01-01");
-  const [dateTo, setDateTo] = useState("2024-12-31");
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [confirmToggleOpen, setConfirmToggleOpen] = useState(false);
   const [loading, setLoading] = useState(true);

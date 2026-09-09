@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, User, Shield, AlertCircle, CheckCircle2 } from "lucide-react";
+import { X, User, AlertCircle } from "lucide-react";
 import { empleadoService } from "../services/empleadoService";
 import { departamentoService } from "../services/departamentoService";
 import { Employee, Department } from "../types";

@@ -67,7 +67,6 @@ export const dashboardService = {
         empleadosActivos: resumen.empleadosConPermiso ?? 0,
         accesosHoy: resumen.accesosHoy ?? 0,
         intentosFallidosHoy: resumen.denegadosHoy ?? 0,
-        fallasSensor: 0,
         aforoActual: resumen.enPlanta ?? 0,
       },
       accesosPorDia: semanaRes.data.map((s) => ({

@@ -3,10 +3,6 @@ import {
   Building2,
   Plus,
   Edit2,
-  Trash2,
-  Users,
-  ShieldCheck,
-  ShieldAlert,
   AlertCircle,
   X,
   RefreshCw,
@@ -216,7 +212,6 @@ export default function Departamentos() {
 
   const validateForm = (): boolean => {
     const errs: DeptErrors = {};
-    const textRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\d-]+$/;
 
     if (!codigo.trim()) {
       errs.codigo = "El código de área es obligatorio.";
@@ -399,7 +394,9 @@ export default function Departamentos() {
                 </div>
                 <div className="flex items-center justify-between text-muted-foreground">
                   <span>Capacidad / Aforo Máximo:</span>
-                  <span className="font-mono font-medium text-foreground">{dept.capacidadMaxima || 50} personas</span>
+                  <span className="font-mono font-medium text-foreground">
+                    {dept.capacidadMaxima ? `${dept.capacidadMaxima} personas` : "Sin definir"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-muted-foreground">
                   <span>Estado Operativo:</span>

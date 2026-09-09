@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
-import { Lock, ShieldCheck, User, CheckCircle2, Clock, Smartphone, AlertCircle, ArrowLeft } from "lucide-react";
+import { Lock, ShieldCheck, User, CheckCircle2, Clock, ArrowLeft } from "lucide-react";
 import { empleadoService } from "../services/empleadoService";
 import { Employee } from "../types";
 

@@ -1,12 +1,9 @@
 import { useState, useEffect } from "react";
 import {
   Search,
-  Download,
-  Filter,
   RefreshCw,
   FileSpreadsheet,
   FileText,
-  Calendar,
 } from "lucide-react";
 import { accesoService } from "../services/accesoService";
 import { AccessEntry } from "../types";
@@ -16,7 +13,7 @@ import { toast } from "sonner";
 
 export default function HistorialAccesos() {
   const [logs, setLogs] = useState<AccessEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [resultadoFilter, setResultadoFilter] = useState("ALL");
   const [dateFrom, setDateFrom] = useState(() => {
