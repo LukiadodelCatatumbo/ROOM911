@@ -1,5 +1,6 @@
 package com.room911.exception;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -62,36 +64,41 @@ public class GlobalExceptionHandler {
         return construir(HttpStatus.FORBIDDEN, "No tiene permisos para realizar esta acción");
     }
 
+    @ExceptionHandler(RecursoNoEncontradoException.class)
+    public ResponseEntity<Map<String, Object>> manejarNoEncontrado(RecursoNoEncontradoException ex) {
+        return construir(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(RecursoDuplicadoException.class)
+    public ResponseEntity<Map<String, Object>> manejarDuplicado(RecursoDuplicadoException ex) {
+        return construir(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(EstadoInvalidoException.class)
+    public ResponseEntity<Map<String, Object>> manejarEstadoInvalido(EstadoInvalidoException ex) {
+        return construir(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(CuentaBloqueadaException.class)
+    public ResponseEntity<Map<String, Object>> manejarCuentaBloqueada(CuentaBloqueadaException ex) {
+        return construir(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
+    }
+
+    /**
+     * Salvavidas para errores de negocio no tipados: 400 sin exponer el
+     * stacktrace, pero dejando traza en el log.
+     */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> manejarRuntime(RuntimeException ex) {
-        Map<String, Object> respuesta = new HashMap<>();
-        String mensaje = ex.getMessage() != null ? ex.getMessage() : "Error en el servidor";
-        HttpStatus status = HttpStatus.BAD_REQUEST;
-
-        String mensajeLower = mensaje.toLowerCase();
-        if (mensajeLower.contains("no encontrado") || mensajeLower.contains("not found")) {
-            status = HttpStatus.NOT_FOUND;
-        } else if (mensajeLower.contains("ya existe") || mensajeLower.contains("duplicado")) {
-            status = HttpStatus.CONFLICT;
-        } else if (mensajeLower.contains("inactivo") || mensajeLower.contains("incorrecta") || mensajeLower.contains("no permitido")) {
-            status = HttpStatus.UNAUTHORIZED;
-        }
-
-        respuesta.put("fecha", LocalDateTime.now());
-        respuesta.put("estado", status.value());
-        respuesta.put("mensaje", mensaje);
-
-        return ResponseEntity.status(status).body(respuesta);
+        log.warn("Error de negocio no tipado: {}", ex.getMessage());
+        return construir(HttpStatus.BAD_REQUEST,
+                ex.getMessage() != null ? ex.getMessage() : "Error en el servidor");
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> manejarGeneral(Exception ex) {
-        Map<String, Object> respuesta = new HashMap<>();
-        respuesta.put("fecha", LocalDateTime.now());
-        respuesta.put("estado", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        respuesta.put("mensaje", "Error interno no controlado");
-
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(respuesta);
+        log.error("Error interno no controlado", ex);
+        return construir(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno no controlado");
     }
 
     private ResponseEntity<Map<String, Object>> construir(HttpStatus estado, String mensaje) {

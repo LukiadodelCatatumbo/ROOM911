@@ -4,18 +4,22 @@ import com.room911.dto.HistorialAccesoDTO;
 import com.room911.dto.HistorialAccesoResponseDTO;
 import com.room911.entity.Empleado;
 import com.room911.entity.HistorialAcceso;
+import com.room911.exception.EstadoInvalidoException;
+import com.room911.exception.RecursoNoEncontradoException;
 import com.room911.mapper.HistorialAccesoMapper;
 import com.room911.repository.EmpleadoRepository;
 import com.room911.repository.HistorialAccesoRepository;
 import com.room911.service.interfaces.HistorialAccesoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class HistorialAccesoServiceImpl implements HistorialAccesoService {
     private final HistorialAccesoRepository historialAccesoRepository;
     private final EmpleadoRepository empleadoRepository;
@@ -23,7 +27,7 @@ public class HistorialAccesoServiceImpl implements HistorialAccesoService {
     @Override
     public HistorialAccesoResponseDTO guardar(HistorialAccesoDTO dto){
         Empleado empleado = empleadoRepository.findById(dto.getEmpleadoId())
-                .orElseThrow(() -> new RuntimeException("Empleado no encontrado"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Empleado no encontrado"));
 
         HistorialAcceso historial = HistorialAcceso.builder()
                 .empleado(empleado)
@@ -46,7 +50,7 @@ public class HistorialAccesoServiceImpl implements HistorialAccesoService {
     @Override
     public HistorialAccesoResponseDTO buscarPorId(Long id){
         HistorialAcceso historial = historialAccesoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Historial de acceso no encontrado"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Historial de acceso no encontrado"));
         return HistorialAccesoMapper.toDTO(historial);
     }
 
@@ -61,10 +65,10 @@ public class HistorialAccesoServiceImpl implements HistorialAccesoService {
     @Override
     public HistorialAccesoResponseDTO registrarSalida(Long id){
         HistorialAcceso historial = historialAccesoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Historial de acceso no encontrado"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Historial de acceso no encontrado"));
 
         if (historial.getFechaSalida() != null){
-            throw new RuntimeException("La salida ya fue registrada");
+            throw new EstadoInvalidoException("La salida ya fue registrada");
         }
 
         historial.setFechaSalida(LocalDateTime.now());

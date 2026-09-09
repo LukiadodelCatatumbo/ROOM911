@@ -24,10 +24,13 @@ public class AuthServiceImpl implements AuthService {
     private final AdministradorRepository administradorRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RegistroIntentosLogin registroIntentosLogin;
 
     @Override
     @Transactional(readOnly = true)
     public LoginResponseDTO login(LoginRequestDTO dto) {
+
+        registroIntentosLogin.verificarBloqueo(dto.getUsuario());
 
         Administrador admin = administradorRepository
                 .findByUsuario(dto.getUsuario())
@@ -36,8 +39,11 @@ public class AuthServiceImpl implements AuthService {
         if (admin == null
                 || !Boolean.TRUE.equals(admin.getActivo())
                 || !passwordEncoder.matches(dto.getContrasena(), admin.getContrasena())) {
+            registroIntentosLogin.registrarFallo(dto.getUsuario());
             throw new BadCredentialsException("Credenciales inválidas");
         }
+
+        registroIntentosLogin.limpiar(dto.getUsuario());
 
         String token = jwtService.generarToken(admin.getUsuario(), admin.getRol());
 

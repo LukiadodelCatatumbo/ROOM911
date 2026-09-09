@@ -4,18 +4,21 @@ import com.room911.dto.AuditoriaDTO;
 import com.room911.dto.AuditoriaResponseDTO;
 import com.room911.entity.Administrador;
 import com.room911.entity.Auditoria;
+import com.room911.exception.RecursoNoEncontradoException;
 import com.room911.mapper.AuditoriaMapper;
 import com.room911.repository.AdministradorRepository;
 import com.room911.repository.AuditoriaRepository;
 import com.room911.service.interfaces.AuditoriaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AuditoriaServiceImpl implements AuditoriaService {
 
     private final AuditoriaRepository auditoriaRepository;
@@ -27,7 +30,7 @@ public class AuditoriaServiceImpl implements AuditoriaService {
         Administrador administrador = administradorRepository
                 .findById(dto.getAdministradorId())
                 .orElseThrow(() ->
-                        new RuntimeException("Administrador no encontrado"));
+                        new RecursoNoEncontradoException("Administrador no encontrado"));
 
         Auditoria auditoria = Auditoria.builder()
                 .administrador(administrador)
@@ -55,7 +58,7 @@ public class AuditoriaServiceImpl implements AuditoriaService {
 
         Auditoria auditoria = auditoriaRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException("Registro de auditoría no encontrado"));
+                        new RecursoNoEncontradoException("Registro de auditoría no encontrado"));
 
         return AuditoriaMapper.toDTO(auditoria);
     }

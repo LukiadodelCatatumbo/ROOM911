@@ -2,11 +2,15 @@ package com.room911.service.impl;
 
 import com.room911.dto.AdministradorDTO;
 import com.room911.entity.Administrador;
+import com.room911.exception.EstadoInvalidoException;
+import com.room911.exception.RecursoDuplicadoException;
+import com.room911.exception.RecursoNoEncontradoException;
 import com.room911.repository.AdministradorRepository;
 import com.room911.service.interfaces.AdministradorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,6 +18,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AdministradorServiceImpl implements AdministradorService {
 
     public static final String ROL_POR_DEFECTO = "ADMIN_ACCESOS";
@@ -30,11 +35,11 @@ public class AdministradorServiceImpl implements AdministradorService {
         }
 
         if (administradorRepository.existsByUsuarioAndActivoTrue(dto.getUsuario())) {
-            throw new RuntimeException("El usuario ya existe");
+            throw new RecursoDuplicadoException("El usuario ya existe");
         }
 
         if (administradorRepository.existsByCorreoAndActivoTrue(dto.getCorreo())) {
-            throw new RuntimeException("El correo ya existe");
+            throw new RecursoDuplicadoException("El correo ya existe");
         }
         Administrador administrador = Administrador.builder()
                 .nombre(dto.getNombre())
@@ -57,7 +62,7 @@ public class AdministradorServiceImpl implements AdministradorService {
     @Override
     public Administrador buscarPorId(Long id) {
         return administradorRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Administrador no encontrado"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Administrador no encontrado"));
     }
 
     @Override
@@ -85,7 +90,7 @@ public class AdministradorServiceImpl implements AdministradorService {
         if (administrador.getActivo() != null && administrador.getActivo()
                 && "SUPER_ADMIN".equals(administrador.getRol())
                 && administradorRepository.countByRolAndActivoTrue("SUPER_ADMIN") <= 1) {
-            throw new RuntimeException("No se puede inhabilitar al último SUPER_ADMIN activo");
+            throw new EstadoInvalidoException("No se puede inhabilitar al último SUPER_ADMIN activo");
         }
 
         administrador.setActivo(false);

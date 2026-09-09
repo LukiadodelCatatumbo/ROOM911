@@ -11,6 +11,8 @@ import com.room911.dto.DepartamentoDTO;
 import com.room911.dto.DepartamentoResponseDTO;
 import com.room911.entity.Administrador;
 import com.room911.entity.Departamento;
+import com.room911.exception.RecursoDuplicadoException;
+import com.room911.exception.RecursoNoEncontradoException;
 import com.room911.mapper.DepartamentoMapper;
 import com.room911.repository.AdministradorRepository;
 import com.room911.repository.DepartamentoRepository;
@@ -18,9 +20,11 @@ import com.room911.repository.EmpleadoRepository;
 import com.room911.service.interfaces.DepartamentoService;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class DepartamentoServiceImpl implements DepartamentoService {
 
     private final DepartamentoRepository departamentoRepository;
@@ -48,7 +52,7 @@ public class DepartamentoServiceImpl implements DepartamentoService {
     public DepartamentoResponseDTO guardar(DepartamentoDTO dto) {
 
         if (departamentoRepository.existsByNombreAndActivoTrue(dto.getNombre())) {
-            throw new RuntimeException("El departamento ya existe");
+            throw new RecursoDuplicadoException("El departamento ya existe");
         }
 
         Departamento departamento = Departamento.builder()
@@ -83,7 +87,7 @@ public class DepartamentoServiceImpl implements DepartamentoService {
 
         Departamento departamento = departamentoRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException("Departamento no encontrado"));
+                        new RecursoNoEncontradoException("Departamento no encontrado"));
 
         return toDTO(departamento);
 
@@ -94,11 +98,11 @@ public class DepartamentoServiceImpl implements DepartamentoService {
 
         Departamento departamento = departamentoRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException("Departamento no encontrado"));
+                        new RecursoNoEncontradoException("Departamento no encontrado"));
 
         if (!departamento.getNombre().equals(dto.getNombre())
                 && departamentoRepository.existsByNombreAndActivoTrue(dto.getNombre())) {
-            throw new RuntimeException("El departamento ya existe");
+            throw new RecursoDuplicadoException("El departamento ya existe");
         }
 
         departamento.setNombre(dto.getNombre());
@@ -120,7 +124,7 @@ public class DepartamentoServiceImpl implements DepartamentoService {
 
         Departamento departamento = departamentoRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException("Departamento no encontrado"));
+                        new RecursoNoEncontradoException("Departamento no encontrado"));
 
         /**
          * Aqui se uso el metodo de eliminacion logica, en lugar de eliminar el registro de la base de datos, se cambia el estado del registro a inactivo.
@@ -138,7 +142,7 @@ public void activar(Long id) {
 
     Departamento departamento = departamentoRepository.findById(id)
             .orElseThrow(() ->
-                    new RuntimeException("Departamento no encontrado"));
+                    new RecursoNoEncontradoException("Departamento no encontrado"));
 
     departamento.setActivo(true);
     departamento.setFechaActualizacion(LocalDateTime.now());

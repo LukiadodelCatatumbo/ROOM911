@@ -53,7 +53,7 @@ class AuthControllerTest {
     }
 
     private static final String BODY_OK =
-            "{\"username\":\"superadmin\",\"password\":\"S3gura*2026\"}";
+            "{\"usuario\":\"superadmin\",\"contrasena\":\"S3gura*2026\"}";
 
     @Test
     @DisplayName("Login correcto devuelve 200 con token y rol")
@@ -63,7 +63,7 @@ class AuthControllerTest {
                         .loginCorrecto(true)
                         .mensaje("Inicio de sesión exitoso")
                         .token("jwt-de-prueba")
-                        .username("superadmin")
+                        .usuario("superadmin")
                         .nombre("Super Administrador")
                         .correo("superadmin@pharma911.com")
                         .rol("SUPER_ADMIN")
@@ -99,7 +99,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/login")
                         .with(csrf())
                         .contentType("application/json")
-                        .content("{\"username\":\"\",\"password\":\"\"}"))
+                        .content("{\"usuario\":\"\",\"contrasena\":\"\"}"))
                 .andExpect(status().isBadRequest());
     }
 }

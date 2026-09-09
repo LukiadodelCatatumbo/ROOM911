@@ -24,16 +24,19 @@ public class AuditoriaController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_SISTEMAS')")
     public List<AuditoriaResponseDTO> listar() {
         return auditoriaService.listar();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_SISTEMAS')")
     public AuditoriaResponseDTO buscarPorId(@PathVariable Long id) {
         return auditoriaService.buscarPorId(id);
     }
 
     @GetMapping("/administrador/{administradorId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_SISTEMAS')")
     public List<AuditoriaResponseDTO> buscarPorAdministrador(
             @PathVariable Long administradorId) {
 

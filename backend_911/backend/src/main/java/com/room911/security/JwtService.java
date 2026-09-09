@@ -25,6 +25,18 @@ public class JwtService {
     public JwtService(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration-ms}") long expiracionMs) {
+        // Fail-fast: sin secret commiteado, el sistema no debe arrancar jamás
+        // con una clave conocida (permitiría forjar tokens SUPER_ADMIN).
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT_SECRET no está definida. Configúrala en el entorno "
+                            + "(mínimo 32 caracteres aleatorios) y vuelve a arrancar.");
+        }
+        if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException(
+                    "JWT_SECRET es demasiado corta: se requieren al menos 32 caracteres "
+                            + "para una firma HS256 segura.");
+        }
         this.clave = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expiracionMs = expiracionMs;
     }

@@ -35,6 +35,7 @@ public class HistorialAccesoController {
      */
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public List<HistorialAccesoResponseDTO> listar(){
         return historialAccesoService.listar();
     }
@@ -44,6 +45,7 @@ public class HistorialAccesoController {
      */
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<HistorialAccesoResponseDTO> buscarPorId(
             @PathVariable Long id){
         return ResponseEntity.ok(historialAccesoService.buscarPorId(id));
@@ -54,6 +56,7 @@ public class HistorialAccesoController {
      */
 
     @GetMapping("/empleado/{empleadoId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
     public ResponseEntity<List<HistorialAccesoResponseDTO>> listarPorEmpleado(
             @PathVariable Long empleadoId){
         return ResponseEntity.ok(historialAccesoService.listarPorEmpleado(empleadoId));

@@ -8,11 +8,13 @@ import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfWriter;
 import com.room911.entity.AccessAttempt;
 import com.room911.entity.Empleado;
+import com.room911.exception.RecursoNoEncontradoException;
 import com.room911.repository.AccessAttemptRepository;
 import com.room911.repository.EmpleadoRepository;
 import com.room911.service.interfaces.PdfService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
@@ -21,6 +23,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class PdfServiceImpl implements PdfService {
 
     private final AccessAttemptRepository accessAttemptRepository;
@@ -31,7 +34,7 @@ public class PdfServiceImpl implements PdfService {
 
         Empleado empleado = empleadoRepository.findById(empleadoId)
                 .orElseThrow(() ->
-                        new RuntimeException("Empleado no encontrado"));
+                        new RecursoNoEncontradoException("Empleado no encontrado"));
 
         List<AccessAttempt> intentos =
                 accessAttemptRepository.findByEmpleadoId(empleadoId);

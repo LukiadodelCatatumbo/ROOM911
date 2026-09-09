@@ -3,6 +3,7 @@ package com.room911.repository;
 import com.room911.dto.DepartamentoResumenDTO;
 import com.room911.entity.Departamento;
 import com.room911.entity.Empleado;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -18,12 +19,21 @@ public interface EmpleadoRepository extends JpaRepository<Empleado, Long> {
     boolean existsByDocumentoAndActivoTrue(String documento);
     boolean existsByCorreoAndActivoTrue(String correo);
 
+    // EntityGraph: evita N+1 al hidratar departamento en los mapeos a DTO
+    @Override
+    @EntityGraph(attributePaths = "departamento")
+    List<Empleado> findAll();
+
+    @EntityGraph(attributePaths = "departamento")
     List<Empleado> findByActivoTrue();
 
+    @EntityGraph(attributePaths = "departamento")
     List<Empleado> findByNombreContainingIgnoreCaseAndActivoTrue(String nombre);
 
+    @EntityGraph(attributePaths = "departamento")
     List<Empleado> findByApellidoContainingIgnoreCaseAndActivoTrue(String apellido);
 
+    @EntityGraph(attributePaths = "departamento")
     List<Empleado> findByDepartamentoIdAndActivoTrue(Long departamentoId);
 
     long countByActivoTrue();

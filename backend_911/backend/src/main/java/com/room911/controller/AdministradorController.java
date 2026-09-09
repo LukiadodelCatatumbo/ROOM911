@@ -32,6 +32,7 @@ public class AdministradorController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_SISTEMAS')")
     public List<AdministradorResponseDTO> listar() {
         return administradorService.listar().stream()
                 .map(AdministradorMapper::toDTO)
@@ -39,6 +40,7 @@ public class AdministradorController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_SISTEMAS')")
     public ResponseEntity<AdministradorResponseDTO> buscarPorId(
             @PathVariable Long id){
         return ResponseEntity.ok(
