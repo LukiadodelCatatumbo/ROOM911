@@ -9,7 +9,7 @@ import {
   Lock,
   LogOut,
 } from "lucide-react";
-import { authService } from "../../services/authService";
+import { useAuth } from "../../context/AuthContext";
 
 const menuItems = [
   {
@@ -38,7 +38,7 @@ const menuItems = [
 
 export function Sidebar() {
   const location = useLocation();
-  const user = authService.getUser();
+  const { user, logout } = useAuth();
   const rol = user?.rol;
 
   const gruposFiltrados = menuItems
@@ -51,7 +51,7 @@ export function Sidebar() {
     .filter((group) => group.items.length > 0);
 
 const handleLogout = () => {
-  authService.logout();
+  logout();
   window.location.replace("/login");
 };
 

@@ -13,7 +13,7 @@ public class AdministradorMapper {
                 .apellido(administrador.getApellido())
                 .correo(administrador.getCorreo())
                 .usuario(administrador.getUsuario())
-                .rol(administrador.getRol())
+                .rol(administrador.getRol().name())
                 .activo(administrador.getActivo())
                 .fechaCreacion(administrador.getFechaCreacion())
                 .fechaActualizacion(administrador.getFechaActualizacion())

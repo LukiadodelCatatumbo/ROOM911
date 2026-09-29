@@ -101,7 +101,7 @@ class RoleSecurityTest {
                         .apellido("Martínez")
                         .correo("a.martinez@pharma911.com")
                         .usuario("a.martinez")
-                        .rol("ADMIN_ACCESOS")
+                        .rol(com.room911.entity.Rol.ADMIN_ACCESOS)
                         .activo(true)
                         .build());
 

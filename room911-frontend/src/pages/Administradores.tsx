@@ -12,7 +12,7 @@ import {
   Check,
 } from "lucide-react";
 import { adminService } from "../services/adminService";
-import { authService } from "../services/authService";
+import { useAuth } from "../context/AuthContext";
 import { AdminUser } from "../types";
 import { RoleBadge } from "../components/common/Badge";
 import { Pagination } from "../components/common/Pagination";
@@ -33,12 +33,10 @@ export default function Administradores() {
   const [search, setSearch] = useState("");
   const [selectedRole, setSelectedRole] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const currentUser = authService.getCurrentUser();
+  const { user: currentUser, puedeGestionarAdministradores: puedeGestionar, esSuperAdmin } = useAuth();
   // Coincide con los @PreAuthorize del backend: crear/editar requiere
   // SUPER_ADMIN o ADMIN_SISTEMAS; eliminar es exclusivo de SUPER_ADMIN.
-  const puedeGestionar = authService.puedeGestionarAdministradores();
-  const esSuperAdmin = authService.esSuperAdmin();
-
+  
   // Modal / Form state
   const [formOpen, setFormOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);

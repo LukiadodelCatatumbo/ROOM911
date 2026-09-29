@@ -468,3 +468,25 @@
 * Backend arrancado contra la BD migrada sin errores ni recreación de columnas (`ddl-auto=update`).
 * End-to-end: `/dashboard/resumen` (15 empleados), `/dashboard/accesos-semana` (query nativa ejecuta; vacío porque no hay intentos en los últimos 7 días), `/intento-acceso` paginado (74, con `fechaAcceso` correcto) y `/empleados` (15, `fechaCreacion` correcto).
 * `mvn test`: 17/17 en verde, BUILD SUCCESS.
+
+---
+
+### 🧱 Fase 21: Enum de roles, AuthContext y limpieza de código muerto
+* **Fecha:** 2026-09-29
+* **Objetivo:** Cerrar la deuda técnica restante de las auditorías: stringly-typing de roles, sesión sin estado reactivo y ~3.100 líneas de CSS/assets muertos.
+
+#### Enum de roles (backend):
+1. **Nuevo [`entity/Rol.java`](./backend_911/backend/src/main/java/com/room911/entity/Rol.java)** (`SUPER_ADMIN`, `ADMIN_ACCESOS`, `ADMIN_SISTEMAS`): `Administrador.rol` pasa de `String` a `Rol` con `@Enumerated(EnumType.STRING)`. La BD ya guardaba esos mismos textos: **sin migración de datos** y el contrato JSON (`"rol": "SUPER_ADMIN"`) queda intacto.
+2. **`AdministradorServiceImpl`:** `ROLES_VALIDOS` (Set de strings) eliminado; `normalizarRol` resuelve con `Rol.valueOf` y `ROL_POR_DEFECTO` tipado. La protección del "último SUPER_ADMIN" compara con el enum.
+3. **`AdministradorRepository.countByRolAndActivoTrue(Rol)`**, **`AdministradorMapper`/`AuthServiceImpl`** (`getRol().name()`, DTOs siguen siendo String = contrato estable), **`DataInitializer`** (seed con `Rol.*`) y `RoleSecurityTest` actualizados. Los `@PreAuthorize` mantienen sus strings de SpEL (limitación de Spring Security), pero ahora una fuente tipada los valida en BD, seed y tests.
+
+#### AuthContext (frontend):
+4. **Nuevo [`context/AuthContext.tsx`](./room911-frontend/src/context/AuthContext.tsx):** fuente única y reactiva de la sesión (`user`, `isAuthenticated`, `puedeGestionarPersonal`, `puedeGestionarAdministradores`, `esSuperAdmin`, `login`, `logout`, `refresh`), con sincronización entre pestañas vía evento `storage`. Los componentes ya no re-leen ni re-parsean localStorage en cada render.
+5. **Migrados a `useAuth()`:** `App.tsx` (provider), `AppRoutes` (ProtectedRoute/AdminRoute), `Sidebar` (usuario + logout), `Login` (login contextual), y las páginas `Empleados`, `EmpleadoDetalle`, `Administradores`, `Departamentos` (permisos durante render). `SessionTimeout` conserva `authService` a propósito (solo consulta el token y hace recarga completa, que resetea el contexto).
+
+#### Limpieza de código muerto:
+6. **Eliminados los 24 archivos CSS huérfanos de `src/styles/`** (~2.900 líneas; solo `index.css` se importaba) y los assets sin referencias (`react.svg`, `vite.svg`, `hero.png`). Arreglado de paso el favicon roto: `index.html` apuntaba a `/vite.svg` (inexistente en `public/`) y ahora usa `/favicon.svg`.
+
+#### Verificación:
+* `mvn test`: 17/17 en verde. `pnpm build`: sin errores. `pnpm test` (humo): 7/7.
+* End-to-end: `GET /api/administradores` devuelve los roles desde la BD como strings JSON idénticos al contrato anterior (`ADMIN_SISTEMAS`, `SUPER_ADMIN`); login inválido sigue respondiendo 401 genérico.

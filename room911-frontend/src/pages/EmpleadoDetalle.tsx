@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { empleadoService } from "../services/empleadoService";
 import { accesoService } from "../services/accesoService";
-import { authService } from "../services/authService";
+import { useAuth } from "../context/AuthContext";
 import { Employee, AccessEntry } from "../types";
 import { VariantBar } from "../components/common/VariantBar";
 import { AccesoBadge, AccessBadge } from "../components/common/Badge";
@@ -28,7 +28,7 @@ export default function EmpleadoDetalle() {
   const [confirmToggleOpen, setConfirmToggleOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   // El backend restringe escrituras a SUPER_ADMIN y ADMIN_ACCESOS (@PreAuthorize)
-  const puedeEscribir = authService.puedeGestionarPersonal();
+  const { puedeGestionarPersonal: puedeEscribir } = useAuth();
 
   // Pagination for employee history
   const [currentPage, setCurrentPage] = useState(1);

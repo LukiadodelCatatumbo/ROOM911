@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Lock, AlertCircle, ShieldCheck, CheckCircle2, ScanLine, Timer } from "lucide-react";
-import { authService } from "../services/authService";
+import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 
 const runtimeEnv =
@@ -19,6 +19,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [avisoInactividad, setAvisoInactividad] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   useEffect(() => {
     try {
@@ -42,7 +43,7 @@ export default function Login() {
     setError("");
 
     try {
-      await authService.login(usuario, password);
+      await login(usuario, password);
       toast.success("Autenticación exitosa", {
         description: "Bienvenido al panel de control de ROOM_911",
       });

@@ -2,6 +2,7 @@ package com.room911.service.impl;
 
 import com.room911.dto.AdministradorDTO;
 import com.room911.entity.Administrador;
+import com.room911.entity.Rol;
 import com.room911.exception.EstadoInvalidoException;
 import com.room911.exception.RecursoDuplicadoException;
 import com.room911.exception.RecursoNoEncontradoException;
@@ -14,15 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class AdministradorServiceImpl implements AdministradorService {
 
-    public static final String ROL_POR_DEFECTO = "ADMIN_ACCESOS";
-    private static final Set<String> ROLES_VALIDOS = Set.of("SUPER_ADMIN", "ADMIN_ACCESOS", "ADMIN_SISTEMAS");
+    public static final Rol ROL_POR_DEFECTO = Rol.ADMIN_ACCESOS;
 
     private final AdministradorRepository administradorRepository;
     private final BCryptPasswordEncoder passwordEncoder;
@@ -88,8 +87,8 @@ public class AdministradorServiceImpl implements AdministradorService {
         Administrador administrador = buscarPorId(id);
 
         if (administrador.getActivo() != null && administrador.getActivo()
-                && "SUPER_ADMIN".equals(administrador.getRol())
-                && administradorRepository.countByRolAndActivoTrue("SUPER_ADMIN") <= 1) {
+                && administrador.getRol() == Rol.SUPER_ADMIN
+                && administradorRepository.countByRolAndActivoTrue(Rol.SUPER_ADMIN) <= 1) {
             throw new EstadoInvalidoException("No se puede inhabilitar al último SUPER_ADMIN activo");
         }
 
@@ -98,14 +97,14 @@ public class AdministradorServiceImpl implements AdministradorService {
         administradorRepository.save(administrador);
     }
 
-    private String normalizarRol(String rol) {
+    private Rol normalizarRol(String rol) {
         if (rol == null || rol.isBlank()) {
             return ROL_POR_DEFECTO;
         }
-        String rolNormalizado = rol.trim().toUpperCase();
-        if (!ROLES_VALIDOS.contains(rolNormalizado)) {
+        try {
+            return Rol.valueOf(rol.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Rol no válido: " + rol);
         }
-        return rolNormalizado;
     }
 }

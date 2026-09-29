@@ -3,6 +3,7 @@ package com.room911.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -40,9 +41,10 @@ public class Administrador {
     @Column (nullable = false)
     private String contrasena;
 
-    @NotBlank (message = "El rol es obligatorio")
+    @NotNull(message = "El rol es obligatorio")
+    @Enumerated(EnumType.STRING)
     @Column (nullable = false, length = 30)
-    private String rol;
+    private Rol rol;
 
     @Builder.Default
     @Column (nullable = false)

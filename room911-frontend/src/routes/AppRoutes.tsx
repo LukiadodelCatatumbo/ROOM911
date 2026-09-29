@@ -1,7 +1,7 @@
 import { Suspense, lazy } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "../components/layout/AppLayout";
-import { authService } from "../services/authService";
+import { useAuth } from "../context/AuthContext";
 
 // Code splitting: cada página se carga en su propio chunk
 const Login = lazy(() => import("../pages/Login"));
@@ -23,8 +23,8 @@ function RouteFallback() {
 }
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
-  const isAuth = authService.isAuthenticated();
-  if (!isAuth) {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -32,7 +32,8 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 
 /** La página de administradores solo es accesible para SUPER_ADMIN y ADMIN_SISTEMAS. */
 function AdminRoute({ children }: { children: JSX.Element }) {
-  if (!authService.puedeGestionarAdministradores()) {
+  const { puedeGestionarAdministradores } = useAuth();
+  if (!puedeGestionarAdministradores) {
     return <Navigate to="/dashboard" replace />;
   }
   return children;

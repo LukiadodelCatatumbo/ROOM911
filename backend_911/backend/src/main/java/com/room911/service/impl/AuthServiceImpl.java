@@ -45,7 +45,7 @@ public class AuthServiceImpl implements AuthService {
 
         registroIntentosLogin.limpiar(dto.getUsuario());
 
-        String token = jwtService.generarToken(admin.getUsuario(), admin.getRol());
+        String token = jwtService.generarToken(admin.getUsuario(), admin.getRol().name());
 
         return LoginResponseDTO.builder()
                 .loginCorrecto(true)
@@ -54,7 +54,7 @@ public class AuthServiceImpl implements AuthService {
                 .usuario(admin.getUsuario())
                 .nombre(admin.getNombre())
                 .correo(admin.getCorreo())
-                .rol(admin.getRol())
+                .rol(admin.getRol().name())
                 .build();
     }
 }

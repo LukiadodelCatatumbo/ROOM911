@@ -1,6 +1,7 @@
 package com.room911.repository;
 
 import com.room911.entity.Administrador;
+import com.room911.entity.Rol;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,6 +16,6 @@ public interface AdministradorRepository extends JpaRepository<Administrador, Lo
     boolean existsByUsuarioAndActivoTrue(String usuario);
     boolean existsByCorreoAndActivoTrue(String correo);
 
-    long countByRolAndActivoTrue(String rol);
+    long countByRolAndActivoTrue(Rol rol);
 }
 

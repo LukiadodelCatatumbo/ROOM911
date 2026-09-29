@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { departamentoService } from "../services/departamentoService";
 import { adminService } from "../services/adminService";
-import { authService } from "../services/authService";
+import { useAuth } from "../context/AuthContext";
 import { Department } from "../types";
 import { RestrictionBadge } from "../components/common/Badge";
 import { ConfirmDialog } from "../components/common/ConfirmDialog";
@@ -62,7 +62,7 @@ export default function Departamentos() {
 
   const [refreshing, setRefreshing] = useState(false);
   // El backend restringe escrituras a SUPER_ADMIN y ADMIN_ACCESOS (@PreAuthorize)
-  const puedeEscribir = authService.puedeGestionarPersonal();
+  const { puedeGestionarPersonal: puedeEscribir } = useAuth();
 
   const loadDepartments = async (showToast = false) => {
     if (showToast) setRefreshing(true);

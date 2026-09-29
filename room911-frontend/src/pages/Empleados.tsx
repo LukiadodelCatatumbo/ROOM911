@@ -13,7 +13,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { empleadoService } from "../services/empleadoService";
-import { authService } from "../services/authService";
+import { useAuth } from "../context/AuthContext";
 import { Employee } from "../types";
 import { AccessBadge } from "../components/common/Badge";
 import { QRModal } from "../components/common/QRModal";
@@ -52,7 +52,7 @@ export default function Empleados() {
 
   const [refreshing, setRefreshing] = useState(false);
   // El backend restringe escrituras a SUPER_ADMIN y ADMIN_ACCESOS (@PreAuthorize)
-  const puedeEscribir = authService.puedeGestionarPersonal();
+  const { puedeGestionarPersonal: puedeEscribir } = useAuth();
 
   const loadEmployees = async (showToast = false) => {
     if (showToast) setRefreshing(true);

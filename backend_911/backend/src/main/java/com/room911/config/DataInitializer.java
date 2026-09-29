@@ -5,6 +5,7 @@ import com.room911.entity.Administrador;
 import com.room911.entity.Departamento;
 import com.room911.entity.Empleado;
 import com.room911.entity.PuntoAcceso;
+import com.room911.entity.Rol;
 import com.room911.repository.AccessAttemptRepository;
 import com.room911.repository.AdministradorRepository;
 import com.room911.repository.DepartamentoRepository;
@@ -139,19 +140,19 @@ public class DataInitializer implements CommandLineRunner {
                             .nombre("Super").apellido("Administrador")
                             .usuario("superadmin").correo("superadmin@pharma911.com")
                             .contrasena(passwordEncoder.encode(contrasena))
-                            .rol("SUPER_ADMIN")
+                            .rol(Rol.SUPER_ADMIN)
                             .activo(true).fechaCreacion(LocalDateTime.now()).build(),
                     Administrador.builder()
                             .nombre("Dr. Jorge").apellido("Reyes Montoya")
                             .usuario("j.reyes").correo("j.reyes@pharma911.com")
                             .contrasena(passwordEncoder.encode(contrasena))
-                            .rol("ADMIN_ACCESOS")
+                            .rol(Rol.ADMIN_ACCESOS)
                             .activo(true).fechaCreacion(LocalDateTime.now()).build(),
                     Administrador.builder()
                             .nombre("Ing. Andrea").apellido("Sánchez")
                             .usuario("a.sanchez").correo("a.sanchez@pharma911.com")
                             .contrasena(passwordEncoder.encode(contrasena))
-                            .rol("ADMIN_SISTEMAS")
+                            .rol(Rol.ADMIN_SISTEMAS)
                             .activo(true).fechaCreacion(LocalDateTime.now()).build()
             );
             administradorRepository.saveAll(admins);
