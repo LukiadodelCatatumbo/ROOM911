@@ -490,3 +490,32 @@
 #### Verificación:
 * `mvn test`: 17/17 en verde. `pnpm build`: sin errores. `pnpm test` (humo): 7/7.
 * End-to-end: `GET /api/administradores` devuelve los roles desde la BD como strings JSON idénticos al contrato anterior (`ADMIN_SISTEMAS`, `SUPER_ADMIN`); login inválido sigue respondiendo 401 genérico.
+
+---
+
+### 🧯 Fase 22: Hallazgos de la tercera auditoría
+* **Fecha:** 2026-09-29
+* **Objetivo:** Corregir los 6 hallazgos medios de la tercera auditoría más las bajas de corrección rápida.
+
+#### Medios corregidos:
+1. **Documentación actualizada a la Fase 20:** [`GUIA_NUEVO_COMPUTADOR.md`](./GUIA_NUEVO_COMPUTADOR.md) ya no afirma que una BD fresca tiene "columnas timestamp planas" (nacen `date_time_*`); documenta los scripts `v2`→`v3` en orden, la advertencia sobre `ddl-auto=update` y el backfill de `rol`. [`README.md`](./README.md) añade la nota de migración para BDs pre-Fase-20.
+2. **Filtro "Fallas de Sensor" eliminado** (`HistorialAccesos.tsx`): la opción `ERROR_SENSOR` enviaba la misma petición que "Todos" (el backend nunca produce ese estado) y mostraba el historial completo como si fueran fallas.
+3. **Autocorrección de página fuera de rango:** si la página actual excede `totalPaginas` (datos reducidos), `HistorialAccesos` salta a la última página válida en vez de mostrar vacío con paginación rota.
+4. **Backfill de `rol` en [`db/v3_renombrado_columnas_fecha.sql`](./db/v3_renombrado_columnas_fecha.sql):** normaliza casing y asigna `ADMIN_ACCESOS` a administradores legacy sin rol (evita NPE del enum `Rol`). Re-ejecutado en la BD local: 0 filas afectadas (todas válidas).
+5. **Guard anti-race en fetchs** (`HistorialAccesos`, `Dashboard`): contador de peticiones — las respuestas que llegan tarde se descartan y no sobreescriben el estado de una consulta más reciente.
+
+#### Bajas corregidas:
+6. `GET /intento-acceso/{id}` inexistente ahora responde **404** (antes 200 con body vacío) vía `RecursoNoEncontradoException`.
+7. `POST /api/intento-acceso` con `@Valid` + `@NotNull` en `exito`: sin resultado se responde 400 con error de campo, no un mensaje crudo de constraint.
+8. `GET /acceso/colaboradores` lista **solo personal activo** (`findByActivoTrue`): la terminal pública ya no enumera inactivos.
+9. **Zona horaria local:** nuevo [`utils/fechas.ts`](./room911-frontend/src/utils/fechas.ts) (`fechaLocalISO`); `Dashboard` e `HistorialAccesos` dejan de usar `toISOString()` (UTC), que desfasaba el rango de 24h y el `max` de los date-inputs cerca de medianoche.
+10. **Badge honesto de alertas:** el panel indica "+N alertas más no mostradas" cuando hay más de 20 denegados (antes el contador decía 50 y la lista mostraba 20 sin aviso).
+11. **`CredencialDigital` ya no fabrica credenciales:** ante un código desconocido (incluido 404) muestra "Credencial no encontrada" en vez de una tarjeta válida genérica; los códigos demo verificados (`KNOWN_CREDENTIALS`) siguen funcionando offline.
+
+#### Quedan documentados (no corregidos, cambio mayor o aceptado):
+* `xlsx@0.18.5` con CVEs (requiere migrar a `exceljs`/CDN SheetJS).
+* Hook `useAsyncData` para consolidar el patrón fetch de las páginas, `catch (err: any)`, export CSV duplicado, componentes de 700-1000 líneas, keys por índice, PDF sin escapar HTML, contraste light-mode del simulador, healthcheck del backend en compose, Flyway para eliminar la ventana `ddl-auto`/migraciones.
+
+#### Verificación:
+* `mvn test`: 17/17 en verde. `pnpm build`: sin errores. `pnpm test`: 7/7.
+* End-to-end: `GET /intento-acceso/99999` → 404; `POST /intento-acceso` sin `exito` → 400 con `errores.exito`; `GET /acceso/colaboradores` devuelve solo `activo=true`.

@@ -62,6 +62,7 @@ export default function CredencialDigital() {
   const { codigoQr } = useParams<{ codigoQr: string }>();
   const navigate = useNavigate();
   const [employee, setEmployee] = useState<Employee | null>(null);
+  const [noEncontrada, setNoEncontrada] = useState(false);
   const [loading, setLoading] = useState(true);
   const [time, setTime] = useState(new Date().toLocaleTimeString());
 
@@ -76,6 +77,7 @@ export default function CredencialDigital() {
     const loadEmployee = async () => {
       if (!codigoQr) return;
       setLoading(true);
+      setNoEncontrada(false);
       try {
         const emp = await empleadoService.buscarPorId(codigoQr);
         setEmployee(emp);
@@ -84,17 +86,23 @@ export default function CredencialDigital() {
         const cleanCode = codigoQr.trim();
         const known = KNOWN_CREDENTIALS[cleanCode];
 
+        if (!known) {
+          // Sin datos verificados, no se fabrica una credencial válida.
+          setNoEncontrada(true);
+          return;
+        }
+
         setEmployee({
           id: cleanCode,
-          nombre: known?.nombre || "Personal",
-          apellido: known?.apellido || "Acreditado",
+          nombre: known.nombre || "Personal",
+          apellido: known.apellido || "Acreditado",
           cedula: cleanCode.replace(/\D/g, "") || cleanCode,
-          departamento: known?.departamento || "Producción Farmacéutica",
-          cargo: known?.cargo || "Especialista de Planta BPF",
+          departamento: known.departamento || "Producción",
+          cargo: known.cargo || "Especialista de Planta",
           email: "credencial@pharma911.com",
-          acceso: known?.permisoAcceso ?? true,
-          permisoAcceso: known?.permisoAcceso ?? true,
-          activo: known?.activo ?? true,
+          acceso: known.permisoAcceso ?? true,
+          permisoAcceso: known.permisoAcceso ?? true,
+          activo: known.activo ?? true,
           codigoQr: cleanCode,
           documentoIdentidad: cleanCode,
         });
@@ -104,6 +112,24 @@ export default function CredencialDigital() {
     };
     loadEmployee();
   }, [codigoQr]);
+
+  if (noEncontrada) {
+    return (
+      <div className="min-h-screen bg-[#0A111E] flex flex-col items-center justify-center gap-3 p-6 text-white text-center">
+        <p className="text-lg font-semibold">Credencial no encontrada</p>
+        <p className="text-xs text-slate-400 max-w-[280px]">
+          El código <span className="font-mono">{codigoQr}</span> no corresponde
+          a ningún personal registrado en el sistema.
+        </p>
+        <button
+          onClick={() => navigate("/simulador")}
+          className="mt-2 px-4 py-2 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors cursor-pointer"
+        >
+          Ir al simulador
+        </button>
+      </div>
+    );
+  }
 
   if (loading || !employee) {
     return (

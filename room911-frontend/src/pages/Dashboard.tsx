@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -27,6 +27,7 @@ import { accesoService } from "../services/accesoService";
 import { DashboardStats, AccessEvent, AccessEntry } from "../types";
 import { toast } from "sonner";
 import { AccesoBadge } from "../components/common/Badge";
+import { fechaLocalISO } from "../utils/fechas";
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -36,15 +37,18 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [errorCarga, setErrorCarga] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // Guard anti-race: solo la petición más reciente puede escribir estado.
+  const peticionIdRef = useRef(0);
 
   const loadData = async (showToast = false) => {
     if (showToast) setRefreshing(true);
     else setLoading(true);
+    const miPeticion = ++peticionIdRef.current;
     try {
       // Solo los denegados recientes, filtrados en el servidor (antes descargaba todo el historial)
-      const desde24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0];
+      const desde24h = fechaLocalISO(
+        new Date(Date.now() - 24 * 60 * 60 * 1000)
+      );
       const [data, historialRes] = await Promise.all([
         dashboardService.obtenerResumen(),
         accesoService
@@ -52,6 +56,9 @@ export default function Dashboard() {
           .then((p) => p.contenido)
           .catch(() => null),
       ]);
+      if (miPeticion !== peticionIdRef.current) {
+        return; // llegó tarde: una petición más reciente ya tomó el turno
+      }
       setStats(data);
       setErrorCarga(false);
       const historial = Array.isArray(historialRes) ? historialRes : [];
@@ -395,6 +402,12 @@ export default function Dashboard() {
                 </span>
               </li>
             ))}
+            {alertas.length > 20 && (
+              <li className="px-5 py-2.5 text-[11px] text-muted-foreground">
+                + {alertas.length - 20} alertas más no mostradas en esta vista
+                (el historial completo está en Auditoría y Registros).
+              </li>
+            )}
           </ul>
         )}
       </div>

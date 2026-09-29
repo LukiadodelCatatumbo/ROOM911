@@ -108,11 +108,23 @@ Al arrancar, Hibernate crea las tablas y `DataInitializer` siembra (solo si est�
 6 departamentos, **11 puntos de acceso** (`puntos_acceso` con franjas horarias),
 admins (clave de `ROOM911_SEED_PASSWORD`) y 8 empleados + intentos de ejemplo.
 
-Después, aplica una sola vez los índices que Hibernate no crea (idempotente):
+Después, aplica una sola vez los scripts de migración (idempotentes, en orden):
 
 ```bash
 docker compose exec -T db psql -U postgres -d reto_room_911 < db/v2_arreglos_seguros.sql
+docker compose exec -T db psql -U postgres -d reto_room_911 < db/v3_renombrado_columnas_fecha.sql
 ```
+
+> **Importante:** ejecutar v2 y v3 **antes** de arrancar el backend sobre una BD pre-Fase-20.
+> Si el backend arranca primero, `ddl-auto=update` crea las columnas `date_time_*` nuevas y
+> vacías junto a las `fecha_*` viejas, duplicando el esquema en silencio (los reportes por
+> fecha parecerían vacíos sin ningún error). El script v3 también normaliza/backfillea el
+> `rol` de administradores para el enum `Rol` (Fase 21).
+
+> **Nota Fase 20:** una BD fresca creada por Hibernate ya nace con columnas `date_time_*`.
+> Los nombres de columnas son `date_time_*`; el TIPO sigue siendo `timestamp without time
+> zone` (en PostgreSQL no existe el tipo `datetime` de MySQL). Solo necesitas estos scripts
+> si traes una BD creada antes de la Fase 20.
 
 ---
 
@@ -135,11 +147,11 @@ curl -s -X POST http://localhost:8080/api/acceso \
 
 ## 5. Datos: lo que SÍ viaja y lo que NO
 
-- **Viaja en git:** todo el código, seeds, índices y el catálogo de puntos.
+- **Viaja en git:** todo el código, seeds, índices, el catálogo de puntos y los scripts de migración (`db/`).
 - **NO viaja:** `.env`, ni el contenido vivo de tu BD (empleados creados, intentos, auditoría).
-  - BD fresca = seeds (8 empleados demo, horarios base, columnas `timestamp` planas).
-  - El dominio `date_time` existe solo en la BD de origen; en una BD fresca las fechas son
-    `timestamp` con la misma función. Si quieres los datos idénticos, migra con dump:
+  - BD fresca = seeds (empleados demo, horarios base) y columnas ya nacen como `date_time_*`
+    (el tipo de datos es `timestamp without time zone`; en PostgreSQL no existe `datetime`).
+  - Si quieres los datos idénticos a otra máquina, migra con dump:
 
 ```bash
 # En el equipo origen

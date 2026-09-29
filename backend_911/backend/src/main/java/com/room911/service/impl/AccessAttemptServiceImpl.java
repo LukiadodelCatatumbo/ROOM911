@@ -4,6 +4,7 @@ import com.room911.dto.AccessAttemptDTO;
 import com.room911.dto.PaginaResponseDTO;
 import com.room911.entity.AccessAttempt;
 import com.room911.entity.Empleado;
+import com.room911.exception.RecursoNoEncontradoException;
 import com.room911.mapper.AccessAttemptMapper;
 import com.room911.repository.AccessAttemptRepository;
 import com.room911.repository.EmpleadoRepository;
@@ -78,10 +79,11 @@ public class AccessAttemptServiceImpl implements AccessAttemptService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public AccessAttemptDTO findById(Long id){
         return accessAttemptRepository.findById(id)
                 .map(AccessAttemptMapper::toDTO)
-                .orElse(null);
+                .orElseThrow(() -> new RecursoNoEncontradoException("Intento de acceso no encontrado"));
     }
 
     @Override

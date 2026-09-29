@@ -40,7 +40,8 @@ public class AccessServiceImpl implements AccessService {
     @Override
     @Transactional(readOnly = true)
     public java.util.List<ColaboradorSimuladorDTO> listarColaboradores() {
-        return empleadoRepository.findAll().stream()
+        // Solo personal activo: la terminal pública no debe enumerar inactivos.
+        return empleadoRepository.findByActivoTrue().stream()
                 .map(e -> ColaboradorSimuladorDTO.builder()
                         .id(e.getId())
                         .nombre(e.getNombre())

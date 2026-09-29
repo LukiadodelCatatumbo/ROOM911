@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Search,
   RefreshCw,
@@ -10,6 +10,7 @@ import { AccessEntry } from "../types";
 import { AccesoBadge } from "../components/common/Badge";
 import { Pagination } from "../components/common/Pagination";
 import { toast } from "sonner";
+import { fechaLocalISO } from "../utils/fechas";
 
 export default function HistorialAccesos() {
   // Contenido de la página actual: el servidor pagina y filtra, no la memoria.
@@ -27,18 +28,21 @@ export default function HistorialAccesos() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = fechaLocalISO();
 
   const [refreshing, setRefreshing] = useState(false);
 
+  // Guard anti-race: descarta respuestas de peticiones viejas si una más
+  // reciente ya se disparó (cambio de filtro o de página).
+  const peticionIdRef = useRef(0);
+
   // ALL → sin filtro; CONCEDIDO → exito=true; DENEGADO → exito=false.
-  // ERROR_SENSOR se conserva como opción legada, pero el backend no produce ese estado.
   const exitoFiltro =
-    resultadoFilter === "CONCEDIDO"
+    resultadoFilter === "ALL"
+      ? undefined
+      : resultadoFilter === "CONCEDIDO"
       ? true
-      : resultadoFilter === "DENEGADO"
-      ? false
-      : undefined;
+      : false;
 
   const construirParams = (pagina: number, tamano: number) => ({
     pagina: pagina - 1,
@@ -51,10 +55,24 @@ export default function HistorialAccesos() {
 
   const loadLogs = async (showToast = false) => {
     if (showToast) setRefreshing(true);
+    const miPeticion = ++peticionIdRef.current;
     try {
       const pagina = await accesoService.listarHistorial(
         construirParams(currentPage, itemsPerPage)
       );
+      if (miPeticion !== peticionIdRef.current) {
+        return; // llegó tarde: una petición más reciente ya tomó el turno
+      }
+      // Si los datos se redujeron y la página quedó fuera de rango, corrige
+      // y deja que el efecto recargue en la última página válida.
+      if (
+        pagina.contenido.length === 0 &&
+        pagina.totalPaginas > 0 &&
+        currentPage > pagina.totalPaginas
+      ) {
+        setCurrentPage(pagina.totalPaginas);
+        return;
+      }
       setLogs(pagina.contenido);
       setTotalItems(pagina.totalElementos);
       setTotalPages(Math.max(1, pagina.totalPaginas));
@@ -293,7 +311,6 @@ export default function HistorialAccesos() {
               <option value="ALL">Todos los resultados</option>
               <option value="CONCEDIDO">Solo Concedidos</option>
               <option value="DENEGADO">Solo Denegados</option>
-              <option value="ERROR_SENSOR">Fallas de Sensor</option>
             </select>
           </div>
 

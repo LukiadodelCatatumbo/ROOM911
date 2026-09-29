@@ -4,6 +4,7 @@ import com.room911.dto.AccessAttemptDTO;
 import com.room911.dto.PaginaResponseDTO;
 import com.room911.service.interfaces.AccessAttemptService;
 import com.room911.service.interfaces.PdfService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +26,7 @@ public class AccessAttemptController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
-    public ResponseEntity<AccessAttemptDTO> save(@RequestBody AccessAttemptDTO dto){
+    public ResponseEntity<AccessAttemptDTO> save(@Valid @RequestBody AccessAttemptDTO dto){
         return ResponseEntity.ok(accessAttemptService.save(dto));
     }
 

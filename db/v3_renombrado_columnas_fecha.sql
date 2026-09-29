@@ -52,3 +52,17 @@ BEGIN
         END IF;
     END LOOP;
 END $$;
+
+-- ----------------------------------------------------------------------------
+-- Backfill defensivo de rol: el enum Rol (Fase 21) no admite NULL ni textos
+-- fuera de {SUPER_ADMIN, ADMIN_ACCESOS, ADMIN_SISTEMAS}. Cualquier fila legacy
+-- sin rol recibe el rol por defecto y el casing se normaliza.
+-- ----------------------------------------------------------------------------
+UPDATE public.administradores
+SET rol = UPPER(TRIM(rol))
+WHERE rol IS NOT NULL AND UPPER(TRIM(rol)) <> rol;
+
+UPDATE public.administradores
+SET rol = 'ADMIN_ACCESOS'
+WHERE rol IS NULL OR TRIM(rol) = '';
+
