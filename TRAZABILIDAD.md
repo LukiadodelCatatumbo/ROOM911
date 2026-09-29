@@ -449,3 +449,22 @@
 #### Verificación:
 * End-to-end contra PostgreSQL real con JWT y API key: paginado (74 total, páginas correctas), `exito=false` (39 denegados), rango de fechas (65), texto (46 por mensaje, 13 por documento) y catálogo (11 puntos con horarios).
 * `mvn test`: 17/17 en verde. `pnpm build`: sin errores. `pnpm test`: 7/7.
+
+---
+
+### 🗃️ Fase 20: Renombrado de columnas de fecha a convención `date_time_`
+* **Fecha:** 2026-09-29
+* **Objetivo:** Decisión del responsable (opción a): renombrar todas las columnas de tipo timestamp a la convención `date_time_*`. El TIPO de datos no cambia (`timestamp without time zone`; en PostgreSQL no existe `datetime`, es de MySQL — ver nota de Fase 19).
+
+#### Migración de base de datos:
+1. **Nuevo script idempotente [`db/v3_renombrado_columnas_fecha.sql`](./db/v3_renombrado_columnas_fecha.sql):** renombra `*_fecha_creacion` → `*_date_time_creacion`, `*_fecha_actualizacion` → `*_date_time_actualizacion`, `auditoria.fecha` → `auditoria.date_time`, `historial_acceso.fecha_ingreso/fecha_salida` → `date_time_ingreso/date_time_salida` e `intento_acceso.fecha_acceso` → `date_time_acceso`. Verifica existencia antes de renombrar (re-ejecutable). Ejecutado en la BD local: 12 columnas renombradas; los índices (`indice_intento_acceso_fecha`, `indice_intento_acceso_empleado_fecha`) siguieron la columna automáticamente.
+   * Nota: `db/v2_arreglos_seguros.sql` se conserva como registro histórico ya aplicado (referencia los nombres viejos); en despliegues nuevos ejecutar primero v2 y luego v3.
+2. **Entidades JPA actualizadas en el mismo cambio** (7 entidades: `Administrador`, `Departamento`, `Empleado`, `PuntoAcceso`, `Auditoria`, `HistorialAcceso`, `AccessAttempt`): `@Column` explícitos con los nuevos nombres — imprescindible para que `ddl-auto=update` no recree las columnas con el nombre antiguo. Actualizados también los `@Index(columnList=...)` de `AccessAttempt` y la query nativa `obtenerAccesosUltimos7Dias` (`TO_CHAR(date_time_acceso, ...)`).
+
+#### Compatibilidad:
+* Los nombres de propiedades Java y los campos JSON de los DTOs (`fechaAcceso`, `fechaCreacion`...) no cambian: el contrato frontend↔backend queda intacto (verificado con la suite de humo de Fase 19).
+
+#### Verificación:
+* Backend arrancado contra la BD migrada sin errores ni recreación de columnas (`ddl-auto=update`).
+* End-to-end: `/dashboard/resumen` (15 empleados), `/dashboard/accesos-semana` (query nativa ejecuta; vacío porque no hay intentos en los últimos 7 días), `/intento-acceso` paginado (74, con `fechaAcceso` correcto) y `/empleados` (15, `fechaCreacion` correcto).
+* `mvn test`: 17/17 en verde, BUILD SUCCESS.

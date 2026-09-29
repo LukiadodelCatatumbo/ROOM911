@@ -72,8 +72,9 @@ public class PuntoAcceso {
     private Boolean activo = true;
 
     @Builder.Default
-    @Column(nullable = false)
+    @Column(name = "date_time_creacion", nullable = false)
     private LocalDateTime fechaCreacion = LocalDateTime.now();
 
+    @Column(name = "date_time_actualizacion")
     private LocalDateTime fechaActualizacion;
 }

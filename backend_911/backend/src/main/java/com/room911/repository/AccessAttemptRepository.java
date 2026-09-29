@@ -89,13 +89,13 @@ public interface AccessAttemptRepository extends JpaRepository<AccessAttempt, Lo
 
     @Query(value = """
         SELECT
-            TO_CHAR(fecha_acceso, 'Dy') AS dia,
+            TO_CHAR(date_time_acceso, 'Dy') AS dia,
             SUM(CASE WHEN exito = true THEN 1 ELSE 0 END) AS concedidos,
             SUM(CASE WHEN exito = false THEN 1 ELSE 0 END) AS denegados
         FROM intento_acceso
-        WHERE fecha_acceso >= :inicio
-        GROUP BY TO_CHAR(fecha_acceso, 'Dy')
-        ORDER BY MIN(fecha_acceso)
+        WHERE date_time_acceso >= :inicio
+        GROUP BY TO_CHAR(date_time_acceso, 'Dy')
+        ORDER BY MIN(date_time_acceso)
         """, nativeQuery = true)
     List<Object[]> obtenerAccesosUltimos7Dias(
             @Param("inicio") LocalDateTime inicio

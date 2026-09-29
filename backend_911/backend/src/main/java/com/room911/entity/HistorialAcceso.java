@@ -20,10 +20,10 @@ public class HistorialAcceso {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column (nullable = false)
+    @Column(name = "date_time_ingreso", nullable = false)
     private LocalDateTime fechaIngreso;
 
-    @Column (name = "fecha_salida")
+    @Column(name = "date_time_salida")
     private LocalDateTime fechaSalida;
 
     @ManyToOne(fetch = FetchType.LAZY)

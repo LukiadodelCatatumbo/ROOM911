@@ -44,6 +44,6 @@ public class Auditoria {
      * Fecha en que ocurrio la accion
      */
     @Builder.Default
-    @Column(nullable = false)
+    @Column(name = "date_time", nullable = false)
     private LocalDateTime fecha = LocalDateTime.now();
 }

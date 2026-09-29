@@ -10,8 +10,8 @@ import java.time.LocalDateTime;
     name = "intento_acceso",
     indexes = {
         @Index(name = "indice_intento_acceso_empleado", columnList = "empleado_id"),
-        @Index(name = "indice_intento_acceso_fecha", columnList = "fecha_acceso"),
-        @Index(name = "indice_intento_acceso_empleado_fecha", columnList = "empleado_id, fecha_acceso")
+        @Index(name = "indice_intento_acceso_fecha", columnList = "date_time_acceso"),
+        @Index(name = "indice_intento_acceso_empleado_fecha", columnList = "empleado_id, date_time_acceso")
     }
 )
 @Getter
@@ -24,7 +24,7 @@ public class AccessAttempt {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "fecha_acceso", nullable = false)
+    @Column(name = "date_time_acceso", nullable = false)
     private LocalDateTime fechaAcceso;
 
     @Column(nullable = false)
