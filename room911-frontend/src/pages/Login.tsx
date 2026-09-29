@@ -64,7 +64,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex bg-[#F7F8FA] dark:bg-background text-foreground font-sans">
-      {/* Left Brand & Regulatory Panel */}
       <div
         className="hidden lg:flex w-[440px] shrink-0 flex-col justify-between p-12 select-none border-r border-[#1E3050]"
         style={{ background: "#0D1B2E" }}
@@ -88,7 +87,6 @@ export default function Login() {
             Gestión centralizada de credenciales biométricas, registro de personal, trazabilidad y auditoría de accesos en instalaciones reguladas bajo normativas internacionales.
           </p>
 
-          {/* Compliance grid */}
           <div className="mt-10 pt-8 border-t border-[#1E3050] grid grid-cols-2 gap-4">
             {[
               ["ISO 27001", "Certificado"],
@@ -114,7 +112,6 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right Login Form */}
       <div className="flex-1 flex items-center justify-center p-6 md:p-12">
         <div className="w-full max-w-[520px]">
           {/* Mobile Header */}
