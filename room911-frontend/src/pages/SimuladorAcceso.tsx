@@ -52,7 +52,8 @@ interface AccessGrant {
 }
 
 /** Franjas horarias de acceso por punto de control. */
-const ACCESS_POINT_SCHEDULES: Record<string, AccessSchedule> = {
+/** Respaldo offline del catálogo; la fuente única es GET /api/acceso/puntos. */
+const FALLBACK_ACCESS_POINT_SCHEDULES: Record<string, AccessSchedule> = {
   "DOOR-COMMON-01": { nombre: "Horario general", horaInicio: "06:00", horaFin: "22:00" },
   "DOOR-COMMON-02": { nombre: "Comedor y cafetería", horaInicio: "07:00", horaFin: "18:00" },
   "DOOR-PROD-01": { nombre: "Producción - turno mañana", horaInicio: "06:00", horaFin: "14:30" },
@@ -188,40 +189,8 @@ const DEFAULT_TERMINAL_EMPLOYEES: Employee[] = [
   },
 ];
 
-export default function SimuladorAcceso() {
-  const [employees, setEmployees] = useState<Employee[]>(DEFAULT_TERMINAL_EMPLOYEES);
-  const [selectedEmpId, setSelectedEmpId] = useState("1020304050");
-  const [selectedDoorId, setSelectedDoorId] = useState("DOOR-PROD-01");
-  const [simulating, setSimulating] = useState(false);
-  const [recentLogs, setRecentLogs] = useState<SimulationLog[]>([]);
-  // Accesos vigentes por colaborador + punto (clave `${empleadoId}::${puntoId}`).
-  const [accessGrants, setAccessGrants] = useState<Record<string, AccessGrant>>({});
-
-  // Control de horario para probar el acceso con una hora específica.
-  const [useSimulatedTime, setUseSimulatedTime] = useState(false);
-  const [simulatedTime, setSimulatedTime] = useState("09:00");
-
-  // Retardo de la simulación guardado en ref para cancelarlo al desmontar.
-  const simTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (simTimeoutRef.current) clearTimeout(simTimeoutRef.current);
-    },
-    []
-  );
-
-  const [result, setResult] = useState<{
-    status: "IDLE" | "SCANNING" | "CONCEDIDO" | "DENEGADO";
-    mensaje: string;
-    employeeName?: string;
-    details?: string;
-  }>({
-    status: "IDLE",
-    mensaje: "Terminal lista para validación de acceso.",
-  });
-
-  // Physical Access Points linked to departments & restriction levels
-  const accessPoints: AccessPoint[] = [
+/** Respaldo offline del catálogo de puntos (la fuente única es el backend). */
+const FALLBACK_PUNTOS_ACCESO: AccessPoint[] = [
     {
       id: "DOOR-COMMON-01",
       nombre: "Torniquete Principal",
@@ -321,7 +290,46 @@ export default function SimuladorAcceso() {
       tipo: "PUERTA_AUTOMATICA",
       ubicacion: "Edificio Corporativo - Piso 1",
     },
-  ];
+];
+
+export default function SimuladorAcceso() {
+  const [employees, setEmployees] = useState<Employee[]>(DEFAULT_TERMINAL_EMPLOYEES);
+  const [selectedEmpId, setSelectedEmpId] = useState("1020304050");
+  const [selectedDoorId, setSelectedDoorId] = useState("DOOR-PROD-01");
+  const [simulating, setSimulating] = useState(false);
+  const [recentLogs, setRecentLogs] = useState<SimulationLog[]>([]);
+  // Accesos vigentes por colaborador + punto (clave `${empleadoId}::${puntoId}`).
+  const [accessGrants, setAccessGrants] = useState<Record<string, AccessGrant>>({});
+
+  // Control de horario para probar el acceso con una hora específica.
+  const [useSimulatedTime, setUseSimulatedTime] = useState(false);
+  const [simulatedTime, setSimulatedTime] = useState("09:00");
+
+  // Retardo de la simulación guardado en ref para cancelarlo al desmontar.
+  const simTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (simTimeoutRef.current) clearTimeout(simTimeoutRef.current);
+    },
+    []
+  );
+
+  const [result, setResult] = useState<{
+    status: "IDLE" | "SCANNING" | "CONCEDIDO" | "DENEGADO";
+    mensaje: string;
+    employeeName?: string;
+    details?: string;
+  }>({
+    status: "IDLE",
+    mensaje: "Terminal lista para validación de acceso.",
+  });
+
+  // Catálogo de puntos: la fuente única es GET /api/acceso/puntos (tabla
+  // puntos_acceso); el fallback solo aplica en modo offline/demo.
+  const [accessPoints, setAccessPoints] = useState<AccessPoint[]>(FALLBACK_PUNTOS_ACCESO);
+  const [schedules, setSchedules] = useState<Record<string, AccessSchedule>>(
+    FALLBACK_ACCESS_POINT_SCHEDULES
+  );
 
   useEffect(() => {
     const init = async () => {
@@ -333,6 +341,39 @@ export default function SimuladorAcceso() {
         }
       } catch {
         // Sin conexión: modo demo con colaboradores locales.
+      }
+
+      // Puntos de acceso y horarios desde el backend (fuente única del catálogo).
+      try {
+        const puntos = await accesoService.listarPuntos();
+        if (puntos.length === 0) return;
+        setAccessPoints(
+          puntos.map((p) => ({
+            id: p.codigo,
+            nombre: p.nombre,
+            departamento: p.departamento || "Zona Común",
+            nivelRestriccion: (p.nivelRestriccion ||
+              "BAJA") as AccessPoint["nivelRestriccion"],
+            tipo: (p.tipo || "PUERTA_AUTOMATICA") as AccessPoint["tipo"],
+            ubicacion: p.ubicacion || "",
+          }))
+        );
+        setSchedules(
+          Object.fromEntries(
+            puntos
+              .filter((p) => p.horaInicio && p.horaFin)
+              .map((p) => [
+                p.codigo,
+                {
+                  nombre: p.nombreHorario || "Horario general",
+                  horaInicio: p.horaInicio as string,
+                  horaFin: p.horaFin as string,
+                },
+              ])
+          )
+        );
+      } catch {
+        // Sin conexión: se conservan los catálogos de respaldo.
       }
     };
     init();
@@ -387,7 +428,7 @@ export default function SimuladorAcceso() {
   // Etiqueta de punto con su zona y horario: lo permitido y lo denegado
   // se distinguen por el grupo del selector. Solo acceso de entrada.
   const etiquetaPunto = (door: AccessPoint) => {
-    const s = ACCESS_POINT_SCHEDULES[door.id];
+    const s = schedules[door.id];
     const horario = s ? ` · ${s.horaInicio}–${s.horaFin}` : "";
     return `${door.nombre} · ${door.departamento}${horario}`;
   };
@@ -397,7 +438,7 @@ export default function SimuladorAcceso() {
     accessGrants[`${selectedEmployee?.id}::${selectedDoorId}`];
 
   const accessSchedule =
-    ACCESS_POINT_SCHEDULES[selectedAccessPoint.id] || DEFAULT_ACCESS_SCHEDULE;
+    schedules[selectedAccessPoint.id] || DEFAULT_ACCESS_SCHEDULE;
 
   // Access validation evaluation
   const isEmployeeActive =
@@ -470,7 +511,7 @@ export default function SimuladorAcceso() {
 
       const empDept = targetEmp.departamento || "Sin asignar";
       const schedule =
-        ACCESS_POINT_SCHEDULES[selectedAccessPoint.id] || DEFAULT_ACCESS_SCHEDULE;
+        schedules[selectedAccessPoint.id] || DEFAULT_ACCESS_SCHEDULE;
       const credencial =
         targetEmp.codigoQr || targetEmp.documentoIdentidad || targetEmp.id;
 

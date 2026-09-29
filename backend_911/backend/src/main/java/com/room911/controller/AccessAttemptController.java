@@ -1,13 +1,16 @@
 package com.room911.controller;
 
 import com.room911.dto.AccessAttemptDTO;
+import com.room911.dto.PaginaResponseDTO;
 import com.room911.service.interfaces.AccessAttemptService;
 import com.room911.service.interfaces.PdfService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -15,6 +18,8 @@ import java.util.List;
 @RequestMapping("/api/intento-acceso")
 @RequiredArgsConstructor
 public class AccessAttemptController {
+    private static final int TAMANO_MAXIMO = 1000;
+
     private final AccessAttemptService accessAttemptService;
     private final PdfService pdfService;
 
@@ -24,14 +29,30 @@ public class AccessAttemptController {
         return ResponseEntity.ok(accessAttemptService.save(dto));
     }
 
-    // Lecturas visibles a los tres roles: coincide con la visibilidad de
-    // /historial y /dashboard en el frontend (Sidebar roles: null).
+    /**
+     * Listado paginado de servidor. Filtros opcionales: exito (CONCEDIDO/
+     * DENEGADO), desde/hasta (fechas ISO yyyy-MM-dd) y texto libre sobre
+     * mensaje, documento, nombre, apellido o departamento.
+     */
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS', 'ADMIN_SISTEMAS')")
-    public ResponseEntity<List<AccessAttemptDTO>> findAll(){
-        return ResponseEntity.ok(accessAttemptService.findAll());
+    public ResponseEntity<PaginaResponseDTO<AccessAttemptDTO>> listar(
+            @RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "50") int tamano,
+            @RequestParam(required = false) Boolean exito,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @RequestParam(required = false) String texto) {
+
+        int tamanoSeguro = Math.min(Math.max(tamano, 1), TAMANO_MAXIMO);
+        return ResponseEntity.ok(
+                accessAttemptService.listar(pagina, tamanoSeguro, exito, desde, hasta, texto));
     }
 
+    // Lecturas visibles a los tres roles: coincide con la visibilidad de
+    // /historial y /dashboard en el frontend (Sidebar roles: null).
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS', 'ADMIN_SISTEMAS')")
     public ResponseEntity<AccessAttemptDTO> findById(@PathVariable Long id){

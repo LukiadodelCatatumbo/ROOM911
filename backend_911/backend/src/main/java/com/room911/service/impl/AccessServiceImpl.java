@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.room911.dto.AccessRequestDTO;
 import com.room911.dto.AccessResponseDTO;
 import com.room911.dto.ColaboradorSimuladorDTO;
+import com.room911.dto.PuntoAccesoSimuladorDTO;
 import com.room911.entity.AccessAttempt;
 import com.room911.entity.Empleado;
 import com.room911.entity.PuntoAcceso;
@@ -50,6 +51,28 @@ public class AccessServiceImpl implements AccessService {
                                 : "Sin asignar")
                         .activo(e.getActivo())
                         .accesoPermitido(e.getAccesoPermitido())
+                        .build())
+                .toList();
+    }
+
+    /** Fuente única del catálogo: el frontend nunca debe hardcodear puertas ni horarios. */
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<PuntoAccesoSimuladorDTO> listarPuntos() {
+        return puntoAccesoRepository.findAllByActivoTrueOrderByNombreAsc().stream()
+                .map(p -> PuntoAccesoSimuladorDTO.builder()
+                        .codigo(p.getCodigo())
+                        .nombre(p.getNombre())
+                        .ubicacion(p.getUbicacion())
+                        .nivelRestriccion(p.getNivelRestriccion())
+                        .tipo(p.getTipo())
+                        .zonaComun(p.getZonaComun())
+                        .departamento(p.getDepartamento() != null
+                                ? p.getDepartamento().getNombre()
+                                : null)
+                        .horaInicio(p.getHoraInicio())
+                        .horaFin(p.getHoraFin())
+                        .nombreHorario(p.getNombreHorario())
                         .build())
                 .toList();
     }

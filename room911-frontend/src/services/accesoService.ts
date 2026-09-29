@@ -1,5 +1,11 @@
 import api from "./api";
-import { AccessEntry, AccessResult, ValidateAccessResponse } from "../types";
+import {
+  AccessEntry,
+  AccessResult,
+  Pagina,
+  PuntoAccesoRemoto,
+  ValidateAccessResponse,
+} from "../types";
 
 /** AccessResponseDTO del backend (POST /api/acceso y /api/acceso/qr). */
 interface AccessResponseBackend {
@@ -101,17 +107,33 @@ export const accesoService = {
   },
 
   /** El backend registra los intentos en /intento-acceso; no hay endpoint alterno. */
-  async listarHistorial(): Promise<AccessEntry[]> {
-    const response = await api.get<AccessAttemptBackend[]>("/intento-acceso");
-    return response.data.map(mapearIntento);
-  },
-
-  async obtenerHistorialGlobal(): Promise<AccessEntry[]> {
-    return this.listarHistorial();
+  async listarHistorial(
+    params: {
+      pagina?: number;
+      tamano?: number;
+      exito?: boolean;
+      desde?: string;
+      hasta?: string;
+      texto?: string;
+    } = {}
+  ): Promise<Pagina<AccessEntry>> {
+    const response = await api.get<Pagina<AccessAttemptBackend>>("/intento-acceso", {
+      params,
+    });
+    return {
+      ...response.data,
+      contenido: response.data.contenido.map(mapearIntento),
+    };
   },
 
   async listarPorEmpleado(empleadoId: string | number): Promise<AccessEntry[]> {
     const response = await api.get<AccessAttemptBackend[]>(`/intento-acceso/empleado/${empleadoId}`);
     return response.data.map(mapearIntento);
+  },
+
+  /** Catálogo autoritativo de puntos de acceso (backend); el simulador lo consume y guarda fallback offline. */
+  async listarPuntos(): Promise<PuntoAccesoRemoto[]> {
+    const response = await api.get<PuntoAccesoRemoto[]>("/acceso/puntos");
+    return response.data;
   },
 };

@@ -1,5 +1,28 @@
 export type AccessResult = "CONCEDIDO" | "DENEGADO" | "ERROR" | "ERROR_SENSOR";
 
+/** Contrato exacto de PaginaResponseDTO<T> del backend. */
+export interface Pagina<T> {
+  contenido: T[];
+  pagina: number;
+  tamano: number;
+  totalElementos: number;
+  totalPaginas: number;
+}
+
+/** PuntoAccesoSimuladorDTO del backend (GET /acceso/puntos): fuente única del catálogo. */
+export interface PuntoAccesoRemoto {
+  codigo: string;
+  nombre: string;
+  ubicacion?: string;
+  nivelRestriccion?: RestrictionLevel;
+  tipo?: string;
+  zonaComun?: boolean;
+  departamento?: string;
+  horaInicio?: string;
+  horaFin?: string;
+  nombreHorario?: string;
+}
+
 export type AdminRole = "SUPER_ADMIN" | "ADMIN_ACCESOS" | "ADMIN_SISTEMAS";
 
 export type RestrictionLevel = "BAJA" | "MEDIA" | "ALTA" | "CRITICA" | "CRITICA_ESTERIL";

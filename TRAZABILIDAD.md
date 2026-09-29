@@ -424,3 +424,28 @@
 * `mvn test`: 17/17 en verde, BUILD SUCCESS.
 * `pnpm build`: sin errores.
 * Pendiente (fases mayores, requieren cambio de contrato/migración): paginación en servidor (`Pageable`), enum de roles, unificación del catálogo de puntos de acceso backend/simulador, AuthContext, CSS muerto de `src/styles/`, MapStruct.
+
+---
+
+### 🏗️ Fase 19: Paginación de servidor, catálogo único de puntos y tests de humo
+* **Fecha:** 2026-09-29
+* **Objetivo:** Ejecutar las tres inversiones estructurales definidas tras la re-auditoría, atacando las causas de raíz de los antipatrones y no solo sus síntomas.
+
+#### Paginación de servidor (se elimina el antipatrón de mayor impacto):
+1. **`GET /api/intento-acceso` ahora pagina en servidor** (`pagina`, `tamano` con tope 1000, orden `fechaAcceso desc`) y devuelve `PaginaResponseDTO<T>` (contenido, pagina, tamano, totalElementos, totalPaginas). Eliminado el `findAll()` completo: la tabla de auditoría (la de mayor crecimiento) ya no viaja entera al cliente.
+2. **Filtros opcionales server-side**: `exito` (CONCEDIDO/DENEGADO), `desde`/`hasta` (fechas ISO) y `texto` libre (mensaje, documento_intentado, nombre, apellido, documento, departamento). Query JPQL con `LEFT JOIN` + `@EntityGraph`. Nota técnica: los filtros opcionales usan `COALESCE(:param, columna)` y el patrón LIKE llega pre-envuelto (`%texto%`), porque PostgreSQL no infiere el tipo de un parámetro sin contexto (`:param IS NULL` falla con "could not determine data type" y `'%',?,'%'` con `||` infiere bytea).
+3. **Frontend tipado contra el nuevo contrato**: `Pagina<T>` en `types/`; `HistorialAccesos` pagina, filtra por resultado/fecha y busca **en el servidor** (con debounce de 350 ms); los exportes CSV/PDF piden hasta 1000 registros ya filtrados; `Dashboard` pide solo los denegados recientes (`exito=false&desde=<24h>`) en vez de descargar todo el historial.
+
+#### Catálogo único de puntos de acceso (se elimina la triple copia):
+4. **Nuevo `GET /api/acceso/puntos`** (superficie pública con API key): proyecta `puntos_acceso` (codigo, nombre, ubicacion, nivel, tipo, zonaComun, departamento, franja horaria) como `PuntoAccesoSimuladorDTO`. El backend es la **fuente única**; el catálogo del simulador quedó como `FALLBACK_*` a nivel de módulo, usado solo sin conexión, y el array de ~100 líneas ya no se recrea en cada render.
+
+#### Tests de humo (prevención de regeneración de deuda):
+5. **Vitest instalado** (`pnpm test`): suite `src/__tests__/services.test.ts` con 7 tests sobre el mapeo del contrato con axios mockeado (paginación, filtros, validarAcceso, catálogo de puntos, fallback público 401, DashboardResumen). Con esto los cambios de contrato del backend que rompan el frontend fallan en segundos, no en producción.
+
+#### Pendiente anotado (solicitud del responsable): tipos timestamp → date_time
+* Inventario actual: **12 columnas `timestamp without time zone`**, todas ya nombradas `fecha_*` (administradores, auditoria, departamentos, empleados, historial_acceso, intento_acceso, puntos_acceso — pares fecha_creacion/fecha_actualizacion, plus auditoria.fecha, historial_acceso.fecha_ingreso/fecha_salida, intento_acceso.fecha_acceso). Ninguna columna se llama "timestamp".
+* Aclaración técnica pendiente de decisión: en **PostgreSQL no existe el tipo `datetime`** (es de MySQL); el equivalente directo es `timestamp without time zone`, que es el tipo actual de las 12 columnas. Las opciones reales son: (a) mantener el tipo y solo renombrar columnas, (b) migrar a `timestamptz` (recomendable si el sistema se despliega en zonas horarias distintas — el backend fija `America/Bogota`), o (c) migrar a otro motor. Queda a la espera de definición del alcance.
+
+#### Verificación:
+* End-to-end contra PostgreSQL real con JWT y API key: paginado (74 total, páginas correctas), `exito=false` (39 denegados), rango de fechas (65), texto (46 por mensaje, 13 por documento) y catálogo (11 puntos con horarios).
+* `mvn test`: 17/17 en verde. `pnpm build`: sin errores. `pnpm test`: 7/7.

@@ -12,27 +12,52 @@ import { Pagination } from "../components/common/Pagination";
 import { toast } from "sonner";
 
 export default function HistorialAccesos() {
+  // Contenido de la página actual: el servidor pagina y filtra, no la memoria.
   const [logs, setLogs] = useState<AccessEntry[]>([]);
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [resultadoFilter, setResultadoFilter] = useState("ALL");
   // Vacío = sin límite de rango (muestra todo el historial)
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [errorCarga, setErrorCarga] = useState(false);
 
-  // Pagination state
+  // Pagination state (server-driven)
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   const todayStr = new Date().toISOString().split("T")[0];
 
   const [refreshing, setRefreshing] = useState(false);
 
+  // ALL → sin filtro; CONCEDIDO → exito=true; DENEGADO → exito=false.
+  // ERROR_SENSOR se conserva como opción legada, pero el backend no produce ese estado.
+  const exitoFiltro =
+    resultadoFilter === "CONCEDIDO"
+      ? true
+      : resultadoFilter === "DENEGADO"
+      ? false
+      : undefined;
+
+  const construirParams = (pagina: number, tamano: number) => ({
+    pagina: pagina - 1,
+    tamano,
+    exito: exitoFiltro,
+    desde: dateFrom || undefined,
+    hasta: dateTo || undefined,
+    texto: searchInput.trim() || undefined,
+  });
+
   const loadLogs = async (showToast = false) => {
     if (showToast) setRefreshing(true);
     try {
-      const data = await accesoService.obtenerHistorialGlobal();
-      setLogs(data);
+      const pagina = await accesoService.listarHistorial(
+        construirParams(currentPage, itemsPerPage)
+      );
+      setLogs(pagina.contenido);
+      setTotalItems(pagina.totalElementos);
+      setTotalPages(Math.max(1, pagina.totalPaginas));
       setErrorCarga(false);
       if (showToast) {
         toast.success("Historial de auditoría actualizado", {
@@ -49,41 +74,34 @@ export default function HistorialAccesos() {
     }
   };
 
+  // Debounce para no disparar una petición por tecla ni por cambio de filtro.
   useEffect(() => {
-    loadLogs();
-  }, []);
+    const t = setTimeout(() => {
+      loadLogs();
+    }, 350);
+    return () => clearTimeout(t);
+  }, [currentPage, itemsPerPage, searchInput, resultadoFilter, dateFrom, dateTo]);
 
-  const filteredLogs = logs.filter((log) => {
-    const matchesSearch =
-      (log.empleadoNombre || "").toLowerCase().includes(search.toLowerCase()) ||
-      (log.empleadoId || "").toLowerCase().includes(search.toLowerCase()) ||
-      (log.puerta || "").toLowerCase().includes(search.toLowerCase()) ||
-      (log.id || "").toLowerCase().includes(search.toLowerCase());
+  const paginatedLogs = logs;
 
-    const matchesResult =
-      resultadoFilter === "ALL" || log.resultado === resultadoFilter;
+  const obtenerRegistrosParaExportar = async (): Promise<AccessEntry[]> => {
+    try {
+      const pagina = await accesoService.listarHistorial(construirParams(1, 1000));
+      return pagina.contenido;
+    } catch {
+      toast.error("No se pudieron obtener los registros para exportar");
+      return [];
+    }
+  };
 
-    // log.fecha viene en formato ISO (yyyy-mm-dd), comparable lexicográficamente
-    const matchesDate =
-      (!dateFrom || (log.fecha ?? "") >= dateFrom) &&
-      (!dateTo || (log.fecha ?? "") <= dateTo);
-
-    return matchesSearch && matchesResult && matchesDate;
-  });
-
-  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
-  const paginatedLogs = filteredLogs.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const handleExportCSV = () => {
-    if (filteredLogs.length === 0) {
+  const handleExportCSV = async () => {
+    const registros = await obtenerRegistrosParaExportar();
+    if (registros.length === 0) {
       toast.error("No hay registros para exportar");
       return;
     }
     const headers = ["ID Evento", "Fecha", "Hora", "ID Empleado", "Nombre Personal", "Departamento", "Puerta / Esclusa", "Resultado", "Motivo / Detalle Tecnico"];
-    const rows = filteredLogs.map((log) => [
+    const rows = registros.map((log) => [
       `"${log.id}"`,
       `"${log.fecha || ""}"`,
       `"${log.hora || ""}"`,
@@ -108,12 +126,13 @@ export default function HistorialAccesos() {
     URL.revokeObjectURL(url);
 
     toast.success("Archivo Excel de Auditoría descargado", {
-      description: `${filteredLogs.length} registros exportados con trazabilidad.`,
+      description: `${registros.length} registros exportados con trazabilidad.`,
     });
   };
 
-  const handleExportPDF = () => {
-    if (filteredLogs.length === 0) {
+  const handleExportPDF = async () => {
+    const registros = await obtenerRegistrosParaExportar();
+    if (registros.length === 0) {
       toast.error("No hay registros para exportar");
       return;
     }
@@ -125,7 +144,7 @@ export default function HistorialAccesos() {
     }
 
     const todayStr = new Date().toLocaleString("es-MX");
-    const rowsHtml = filteredLogs
+    const rowsHtml = registros
       .map(
         (log) => `
       <tr>
@@ -160,7 +179,7 @@ export default function HistorialAccesos() {
           <div class="header-box">
             <h1>ROOM_911 · Sistema de Control de Acceso Farmacéutico</h1>
             <p><strong>Informe de Auditoría & Trazabilidad</strong></p>
-            <p>Fecha de emisión: ${todayStr} | Total registros: ${filteredLogs.length}</p>
+            <p>Fecha de emisión: ${todayStr} | Total registros: ${registros.length}</p>
           </div>
           <table>
             <thead>
@@ -197,7 +216,7 @@ export default function HistorialAccesos() {
         <div>
           <h1 className="text-xl font-bold text-foreground">Registro Global de Auditoría & Intentos</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {logs.length} eventos históricos registrados bajo norma de inmutabilidad y trazabilidad.
+            {totalItems} eventos históricos registrados bajo norma de inmutabilidad y trazabilidad.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -255,9 +274,9 @@ export default function HistorialAccesos() {
               <input
                 type="text"
                 placeholder="Buscar por ID evento, personal o puerta..."
-                value={search}
+                value={searchInput}
                 onChange={(e) => {
-                  setSearch(e.target.value);
+                  setSearchInput(e.target.value);
                   setCurrentPage(1);
                 }}
                 className="w-full pl-9 pr-3 py-1.5 bg-background border border-border rounded-md text-xs placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
@@ -350,7 +369,7 @@ export default function HistorialAccesos() {
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          totalItems={filteredLogs.length}
+          totalItems={totalItems}
           itemsPerPage={itemsPerPage}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={(newSize) => {

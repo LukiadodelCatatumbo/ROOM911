@@ -1,6 +1,7 @@
 package com.room911.repository;
 
 import com.room911.entity.PuntoAcceso;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -11,5 +12,6 @@ public interface PuntoAccesoRepository extends JpaRepository<PuntoAcceso, Long> 
 
     Optional<PuntoAcceso> findByNombre(String nombre);
 
+    @EntityGraph(attributePaths = "departamento")
     List<PuntoAcceso> findAllByActivoTrueOrderByNombreAsc();
 }

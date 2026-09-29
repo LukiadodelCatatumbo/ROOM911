@@ -1,6 +1,7 @@
 package com.room911.service.impl;
 
 import com.room911.dto.AccessAttemptDTO;
+import com.room911.dto.PaginaResponseDTO;
 import com.room911.entity.AccessAttempt;
 import com.room911.entity.Empleado;
 import com.room911.mapper.AccessAttemptMapper;
@@ -8,9 +9,14 @@ import com.room911.repository.AccessAttemptRepository;
 import com.room911.repository.EmpleadoRepository;
 import com.room911.service.interfaces.AccessAttemptService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -42,11 +48,33 @@ public class AccessAttemptServiceImpl implements AccessAttemptService {
     }
 
     @Override
-    public List<AccessAttemptDTO> findAll(){
-        return accessAttemptRepository.findAll()
-                .stream()
-                .map(AccessAttemptMapper::toDTO)
-                .toList();
+    @Transactional(readOnly = true)
+    public PaginaResponseDTO<AccessAttemptDTO> listar(
+            int pagina,
+            int tamano,
+            Boolean exito,
+            LocalDate desde,
+            LocalDate hasta,
+            String texto) {
+
+        LocalDateTime inicio = (desde != null) ? desde.atStartOfDay() : null;
+        LocalDateTime fin = (hasta != null) ? hasta.atTime(23, 59, 59) : null;
+        String patron = (texto != null && !texto.isBlank())
+                ? "%" + texto.trim() + "%"
+                : "%";
+
+        Pageable pageable = PageRequest.of(pagina, tamano, Sort.by(Sort.Direction.DESC, "fechaAcceso"));
+        Page<AccessAttemptDTO> page = accessAttemptRepository
+                .buscarConFiltros(exito, inicio, fin, patron, pageable)
+                .map(AccessAttemptMapper::toDTO);
+
+        return PaginaResponseDTO.<AccessAttemptDTO>builder()
+                .contenido(page.getContent())
+                .pagina(page.getNumber())
+                .tamano(page.getSize())
+                .totalElementos(page.getTotalElements())
+                .totalPaginas(page.getTotalPages())
+                .build();
     }
 
     @Override

@@ -41,24 +41,26 @@ export default function Dashboard() {
     if (showToast) setRefreshing(true);
     else setLoading(true);
     try {
+      // Solo los denegados recientes, filtrados en el servidor (antes descargaba todo el historial)
+      const desde24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
       const [data, historialRes] = await Promise.all([
         dashboardService.obtenerResumen(),
-        accesoService.listarHistorial().catch(() => null),
+        accesoService
+          .listarHistorial({ exito: false, desde: desde24h, tamano: 50 })
+          .then((p) => p.contenido)
+          .catch(() => null),
       ]);
       setStats(data);
       setErrorCarga(false);
       const historial = Array.isArray(historialRes) ? historialRes : [];
       setHistorialDisponible(Array.isArray(historialRes));
-      const limite24h = Date.now() - 24 * 60 * 60 * 1000;
       const aMilisegundos = (ts: string) =>
         new Date(ts.includes("T") ? ts : ts.replace(" ", "T")).getTime();
       setAlertas(
-        historial
-          .filter((ev) => ev.resultado === "DENEGADO" && Boolean(ev.timestamp))
-          .filter((ev) => {
-            const ms = aMilisegundos(ev.timestamp ?? "");
-            return !Number.isNaN(ms) && ms >= limite24h;
-          })
+        [...historial]
+          .filter((ev) => Boolean(ev.timestamp))
           .sort(
             (a, b) =>
               aMilisegundos(b.timestamp ?? "") - aMilisegundos(a.timestamp ?? "")

@@ -2,6 +2,8 @@ package com.room911.repository;
 
 import com.room911.dto.AccesosSemanaDTO;
 import com.room911.entity.AccessAttempt;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +21,37 @@ public interface AccessAttemptRepository extends JpaRepository<AccessAttempt, Lo
     @Override
     @EntityGraph(attributePaths = {"empleado", "empleado.departamento"})
     List<AccessAttempt> findAll();
+
+    /**
+     * Listado paginado con filtros opcionales (paginación de servidor).
+     * Los joins LEFT son para el filtro de texto; el grafo hidrata el mapper.
+     * patron siempre llega con '%' como comodín (y '%' si no hay texto: LIKE
+     * sobre todo). Los filtros opcionales usan COALESCE(:param, columna) en
+     * vez de ":param IS NULL" porque PostgreSQL no puede inferir el tipo de
+     * un parámetro sin contexto (falla con "could not determine data type").
+     */
+    @EntityGraph(attributePaths = {"empleado", "empleado.departamento"})
+    @Query("""
+        SELECT a FROM AccessAttempt a
+        LEFT JOIN a.empleado e
+        LEFT JOIN e.departamento d
+        WHERE a.exito = COALESCE(:exito, a.exito)
+        AND a.fechaAcceso >= COALESCE(:desde, a.fechaAcceso)
+        AND a.fechaAcceso <= COALESCE(:hasta, a.fechaAcceso)
+        AND (LOWER(COALESCE(a.mensaje, '')) LIKE LOWER(:patron)
+             OR LOWER(COALESCE(a.documentoIntentado, '')) LIKE LOWER(:patron)
+             OR LOWER(COALESCE(e.nombre, '')) LIKE LOWER(:patron)
+             OR LOWER(COALESCE(e.apellido, '')) LIKE LOWER(:patron)
+             OR LOWER(COALESCE(e.documento, '')) LIKE LOWER(:patron)
+             OR LOWER(COALESCE(d.nombre, '')) LIKE LOWER(:patron))
+        """)
+    Page<AccessAttempt> buscarConFiltros(
+            @Param("exito") Boolean exito,
+            @Param("desde") LocalDateTime desde,
+            @Param("hasta") LocalDateTime hasta,
+            @Param("patron") String patron,
+            Pageable pageable
+    );
 
     @Override
     @EntityGraph(attributePaths = {"empleado", "empleado.departamento"})
