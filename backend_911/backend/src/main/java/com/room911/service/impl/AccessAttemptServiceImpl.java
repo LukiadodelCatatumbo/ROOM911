@@ -23,8 +23,12 @@ public class AccessAttemptServiceImpl implements AccessAttemptService {
 
     @Override
     public AccessAttemptDTO save(AccessAttemptDTO dto){
-        Empleado empleado = empleadoRepository.findById(dto.getEmpleadoId())
-                .orElse(null);
+        Empleado empleado = null;
+        if (dto.getEmpleadoId() != null) {
+            empleado = empleadoRepository.findById(dto.getEmpleadoId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El empleado con id " + dto.getEmpleadoId() + " no existe"));
+        }
 
         AccessAttempt intento = AccessAttempt.builder()
                 .fechaAcceso(LocalDateTime.now())

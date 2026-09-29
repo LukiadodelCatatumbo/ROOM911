@@ -39,7 +39,7 @@ public class AccessAttempt {
     @Column(name = "documento_intentado", length = 20)
     private String documentoIntentado;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "empleado_id")
     private Empleado empleado;
 }

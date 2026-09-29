@@ -2,6 +2,7 @@ package com.room911.repository;
 
 import com.room911.dto.AccesosSemanaDTO;
 import com.room911.entity.AccessAttempt;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -9,24 +10,37 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AccessAttemptRepository extends JpaRepository<AccessAttempt, Long> {
 
+    // EntityGraph: evita N+1 al hidratar empleado y su departamento en los mapeos a DTO
+    @Override
+    @EntityGraph(attributePaths = {"empleado", "empleado.departamento"})
+    List<AccessAttempt> findAll();
+
+    @Override
+    @EntityGraph(attributePaths = {"empleado", "empleado.departamento"})
+    Optional<AccessAttempt> findById(Long id);
+
+    @EntityGraph(attributePaths = {"empleado", "empleado.departamento"})
     List<AccessAttempt> findByEmpleadoId(Long empleadoId);
 
+    @EntityGraph(attributePaths = {"empleado", "empleado.departamento"})
     List<AccessAttempt> findByEmpleadoIdAndFechaAccesoBetween(
             Long empleadoId,
             LocalDateTime inicio,
             LocalDateTime fin
     );
 
+    @EntityGraph(attributePaths = {"empleado", "empleado.departamento"})
+    List<AccessAttempt> findTop10ByOrderByFechaAccesoDesc();
+
     long countByFechaAccesoBetween(
             LocalDateTime inicio,
             LocalDateTime fin
     );
-
-    List<AccessAttempt> findTop10ByOrderByFechaAccesoDesc();
 
     @Query("""
         SELECT COUNT(a)

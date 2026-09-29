@@ -2,6 +2,8 @@ package com.room911.mapper;
 
 import com.room911.dto.AccessAttemptDTO;
 import com.room911.entity.AccessAttempt;
+import com.room911.entity.Departamento;
+import com.room911.entity.Empleado;
 
 public class AccessAttemptMapper {
 
@@ -10,52 +12,25 @@ public class AccessAttemptMapper {
 
     public static AccessAttemptDTO toDTO(AccessAttempt accessAttempt) {
 
+        Empleado empleado = accessAttempt.getEmpleado();
+        Departamento departamento = empleado != null
+                ? empleado.getDepartamento()
+                : null;
+
         return AccessAttemptDTO.builder()
-
                 .id(accessAttempt.getId())
-
                 .fechaAcceso(accessAttempt.getFechaAcceso())
-
                 .exito(accessAttempt.getExito())
-
                 .mensaje(accessAttempt.getMensaje())
-
-                .empleadoId(
-                        accessAttempt.getEmpleado() != null
-                                ? accessAttempt.getEmpleado().getId()
-                                : null
-                )
-
+                .empleadoId(empleado != null ? empleado.getId() : null)
                 .nombreEmpleado(
-                        accessAttempt.getEmpleado() != null
-                                ? accessAttempt.getEmpleado().getNombre()
-                                + " "
-                                + accessAttempt.getEmpleado().getApellido()
+                        empleado != null
+                                ? empleado.getNombre() + " " + empleado.getApellido()
                                 : "Empleado no registrado"
                 )
-
-                .documento(
-                        accessAttempt.getEmpleado() != null
-                                ? accessAttempt.getEmpleado().getDocumento()
-                                : "-"
-                )
-
-                .cargo(
-                        accessAttempt.getEmpleado() != null
-                                ? accessAttempt.getEmpleado().getCargo()
-                                : "-"
-                )
-
-                .departamento(
-                        accessAttempt.getEmpleado() != null
-                                ? accessAttempt.getEmpleado()
-                                        .getDepartamento()
-                                        .getNombre()
-                                : "-"
-                )
-
+                .documento(empleado != null ? empleado.getDocumento() : "-")
+                .cargo(empleado != null ? empleado.getCargo() : "-")
+                .departamento(departamento != null ? departamento.getNombre() : "-")
                 .build();
-
     }
-
 }

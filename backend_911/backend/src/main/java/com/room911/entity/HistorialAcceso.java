@@ -26,7 +26,7 @@ public class HistorialAcceso {
     @Column (name = "fecha_salida")
     private LocalDateTime fechaSalida;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "empleado_id", nullable = false)
     private Empleado empleado;
 

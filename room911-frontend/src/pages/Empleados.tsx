@@ -26,7 +26,6 @@ import { toast } from "sonner";
 
 export default function Empleados() {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedDept, setSelectedDept] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -57,7 +56,6 @@ export default function Empleados() {
 
   const loadEmployees = async (showToast = false) => {
     if (showToast) setRefreshing(true);
-    else setLoading(true);
     try {
       const data = await empleadoService.listarTodos();
       setEmployees(data);
@@ -72,7 +70,6 @@ export default function Empleados() {
           "No se pudo cargar el directorio de personal"
       );
     } finally {
-      setLoading(false);
       if (showToast) setRefreshing(false);
     }
   };

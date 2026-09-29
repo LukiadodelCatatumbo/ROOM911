@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   ScanLine,
@@ -200,6 +200,15 @@ export default function SimuladorAcceso() {
   // Control de horario para probar el acceso con una hora específica.
   const [useSimulatedTime, setUseSimulatedTime] = useState(false);
   const [simulatedTime, setSimulatedTime] = useState("09:00");
+
+  // Retardo de la simulación guardado en ref para cancelarlo al desmontar.
+  const simTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (simTimeoutRef.current) clearTimeout(simTimeoutRef.current);
+    },
+    []
+  );
 
   const [result, setResult] = useState<{
     status: "IDLE" | "SCANNING" | "CONCEDIDO" | "DENEGADO";
@@ -443,8 +452,11 @@ export default function SimuladorAcceso() {
       ? `${simulatedTime}:00 (Simulada)`
       : systemTimeStr;
 
-    // Pequeño retardo para emular procesamiento del punto de acceso
-    setTimeout(async () => {
+    // Pequeño retardo para emular procesamiento del punto de acceso.
+    // Se guarda el id en un ref y se limpia al desmontar para no hacer
+    // setState sobre un componente desmontado.
+    if (simTimeoutRef.current) clearTimeout(simTimeoutRef.current);
+    simTimeoutRef.current = setTimeout(async () => {
       const targetEmp = selectedEmployee;
       if (!targetEmp) {
         setSimulating(false);

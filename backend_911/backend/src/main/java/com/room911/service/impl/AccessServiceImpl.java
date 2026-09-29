@@ -1,6 +1,7 @@
 package com.room911.service.impl;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -204,7 +205,9 @@ public class AccessServiceImpl implements AccessService {
                 if (porId.isPresent()) {
                     return porId;
                 }
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException e) {
+                log.debug("Credencial '{}' no corresponde a un id interno válido", valor);
+            }
         }
 
         return Optional.empty();
@@ -230,7 +233,8 @@ public class AccessServiceImpl implements AccessService {
                         }
                     }
                 }
-            } catch (Exception ignored) {
+            } catch (URISyntaxException e) {
+                log.debug("Contenido QR '{}' no es una URL válida, se intenta extracción manual", input);
                 int lastSlash = input.lastIndexOf('/');
                 if (lastSlash != -1 && lastSlash < input.length() - 1) {
                     return input.substring(lastSlash + 1).trim();

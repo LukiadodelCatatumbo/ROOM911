@@ -2,6 +2,8 @@ package com.room911.service.impl;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -73,11 +75,23 @@ public class DepartamentoServiceImpl implements DepartamentoService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<DepartamentoResponseDTO> listar() {
+
+        Map<Long, Long> activosPorDepartamento = empleadoRepository
+                .contarActivosPorDepartamento()
+                .stream()
+                .collect(Collectors.toMap(
+                        fila -> (Long) fila[0],
+                        fila -> (Long) fila[1]
+                ));
 
         return departamentoRepository.findAll()
                 .stream()
-                .map(this::toDTO)
+                .map(departamento -> DepartamentoMapper.toDTO(
+                        departamento,
+                        activosPorDepartamento.getOrDefault(departamento.getId(), 0L)
+                ))
                 .toList();
 
     }

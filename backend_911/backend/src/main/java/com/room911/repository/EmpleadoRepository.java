@@ -42,6 +42,19 @@ public interface EmpleadoRepository extends JpaRepository<Empleado, Long> {
 
     long countByDepartamentoIdAndActivoTrue(Long departamentoId);
 
+    /**
+     * Cuenta de empleados activos agrupada por departamento en una sola query
+     * (evita el N+1 de COUNT por fila al listar departamentos).
+     */
+    @Query("""
+SELECT e.departamento.id, COUNT(e)
+FROM Empleado e
+WHERE e.activo = true
+AND e.departamento IS NOT NULL
+GROUP BY e.departamento.id
+""")
+    List<Object[]> contarActivosPorDepartamento();
+
     @Query("""
 SELECT new com.room911.dto.DepartamentoResumenDTO(
 d.nombre,

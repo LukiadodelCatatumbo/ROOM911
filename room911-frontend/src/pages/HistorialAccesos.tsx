@@ -13,17 +13,12 @@ import { toast } from "sonner";
 
 export default function HistorialAccesos() {
   const [logs, setLogs] = useState<AccessEntry[]>([]);
-  const [, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [resultadoFilter, setResultadoFilter] = useState("ALL");
-  const [dateFrom, setDateFrom] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  });
-  const [dateTo, setDateTo] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  });
+  // Vacío = sin límite de rango (muestra todo el historial)
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [errorCarga, setErrorCarga] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,19 +30,21 @@ export default function HistorialAccesos() {
 
   const loadLogs = async (showToast = false) => {
     if (showToast) setRefreshing(true);
-    else setLoading(true);
     try {
       const data = await accesoService.obtenerHistorialGlobal();
       setLogs(data);
+      setErrorCarga(false);
       if (showToast) {
         toast.success("Historial de auditoría actualizado", {
           description: "Registros de eventos BPF sincronizados.",
         });
       }
     } catch {
-      // Fallback
+      setErrorCarga(true);
+      toast.error("No se pudo cargar el historial de auditoría", {
+        description: "Verifica la conexión con el servidor e inténtalo de nuevo.",
+      });
     } finally {
-      setLoading(false);
       if (showToast) setRefreshing(false);
     }
   };
@@ -66,7 +63,12 @@ export default function HistorialAccesos() {
     const matchesResult =
       resultadoFilter === "ALL" || log.resultado === resultadoFilter;
 
-    return matchesSearch && matchesResult;
+    // log.fecha viene en formato ISO (yyyy-mm-dd), comparable lexicográficamente
+    const matchesDate =
+      (!dateFrom || (log.fecha ?? "") >= dateFrom) &&
+      (!dateTo || (log.fecha ?? "") <= dateTo);
+
+    return matchesSearch && matchesResult && matchesDate;
   });
 
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
@@ -225,6 +227,21 @@ export default function HistorialAccesos() {
         </div>
       </div>
 
+      {/* Error Banner */}
+      {errorCarga && (
+        <div className="flex items-center justify-between gap-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 p-4 rounded-lg text-xs">
+          <span>
+            No se pudieron cargar los registros de auditoría. Los datos mostrados pueden estar desactualizados.
+          </span>
+          <button
+            onClick={() => loadLogs()}
+            className="px-3 py-1.5 bg-rose-600 text-white rounded-md font-semibold hover:bg-rose-700 transition-colors cursor-pointer"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
       {/* Main Table Container */}
       <div className="bg-white dark:bg-card border border-border rounded-lg shadow-2xs overflow-hidden">
         {/* Filters Bar */}
@@ -267,7 +284,10 @@ export default function HistorialAccesos() {
               type="date"
               value={dateFrom}
               max={todayStr}
-              onChange={(e) => setDateFrom(e.target.value)}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                setCurrentPage(1);
+              }}
               className="px-2 py-1 bg-background border border-border rounded-md text-xs text-foreground"
             />
             <span>Hasta:</span>
@@ -275,7 +295,10 @@ export default function HistorialAccesos() {
               type="date"
               value={dateTo}
               max={todayStr}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                setCurrentPage(1);
+              }}
               className="px-2 py-1 bg-background border border-border rounded-md text-xs text-foreground"
             />
           </div>

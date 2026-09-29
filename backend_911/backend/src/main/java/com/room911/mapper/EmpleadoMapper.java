@@ -1,6 +1,7 @@
 package com.room911.mapper;
 
 import com.room911.dto.EmpleadoResponseDTO;
+import com.room911.entity.Departamento;
 import com.room911.entity.Empleado;
 
 /**
@@ -16,6 +17,8 @@ public class EmpleadoMapper {
             return null;
         }
 
+        Departamento departamento = empleado.getDepartamento();
+
         return EmpleadoResponseDTO.builder()
                 .id(empleado.getId())
                 .nombre(empleado.getNombre())
@@ -23,8 +26,8 @@ public class EmpleadoMapper {
                 .documento(empleado.getDocumento())
                 .correo(empleado.getCorreo())
                 .cargo(empleado.getCargo())
-                .departamentoId(empleado.getDepartamento().getId())
-                .nombreDepartamento(empleado.getDepartamento().getNombre())
+                .departamentoId(departamento != null ? departamento.getId() : null)
+                .nombreDepartamento(departamento != null ? departamento.getNombre() : null)
                 .activo(empleado.getActivo())
                 .accesoPermitido(empleado.getAccesoPermitido())
                 .fechaCreacion(empleado.getFechaCreacion())

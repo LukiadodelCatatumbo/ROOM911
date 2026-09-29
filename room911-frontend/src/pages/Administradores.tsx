@@ -30,7 +30,6 @@ interface AdminErrors {
 
 export default function Administradores() {
   const [admins, setAdmins] = useState<AdminUser[]>([]);
-  const [, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedRole, setSelectedRole] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -122,7 +121,6 @@ export default function Administradores() {
 
   const loadAdmins = async (showToast = false) => {
     if (showToast) setRefreshing(true);
-    else setLoading(true);
     try {
       const data = await adminService.listarTodos();
       setAdmins(data);
@@ -137,7 +135,6 @@ export default function Administradores() {
           "No se pudieron cargar los administradores"
       );
     } finally {
-      setLoading(false);
       if (showToast) setRefreshing(false);
     }
   };
