@@ -31,18 +31,24 @@ import { AccesoBadge } from "../components/common/Badge";
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [alertas, setAlertas] = useState<AccessEntry[]>([]);
+  // false cuando la carga del historial falla: evita el falso "todo en orden".
+  const [historialDisponible, setHistorialDisponible] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [errorCarga, setErrorCarga] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = async (showToast = false) => {
     if (showToast) setRefreshing(true);
     else setLoading(true);
     try {
-      const [data, historial] = await Promise.all([
+      const [data, historialRes] = await Promise.all([
         dashboardService.obtenerResumen(),
-        accesoService.listarHistorial().catch(() => [] as AccessEntry[]),
+        accesoService.listarHistorial().catch(() => null),
       ]);
       setStats(data);
+      setErrorCarga(false);
+      const historial = Array.isArray(historialRes) ? historialRes : [];
+      setHistorialDisponible(Array.isArray(historialRes));
       const limite24h = Date.now() - 24 * 60 * 60 * 1000;
       const aMilisegundos = (ts: string) =>
         new Date(ts.includes("T") ? ts : ts.replace(" ", "T")).getTime();
@@ -64,7 +70,10 @@ export default function Dashboard() {
         });
       }
     } catch {
-      // Fallback
+      setErrorCarga(true);
+      toast.error("No se pudieron cargar los datos del panel", {
+        description: "Verifica la conexión con el servidor e inténtalo de nuevo.",
+      });
     } finally {
       setLoading(false);
       if (showToast) setRefreshing(false);
@@ -74,6 +83,23 @@ export default function Dashboard() {
   useEffect(() => {
     loadData();
   }, []);
+
+  if (errorCarga && !stats) {
+    return (
+      <div className="p-8 flex flex-col items-center justify-center gap-3 min-h-[400px]">
+        <ShieldAlert size={28} className="text-rose-500" />
+        <p className="text-sm text-foreground font-semibold">
+          No se pudieron cargar los datos del panel operativo
+        </p>
+        <button
+          onClick={() => loadData()}
+          className="px-4 py-2 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors cursor-pointer"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   if (loading || !stats) {
     return (
@@ -95,6 +121,13 @@ export default function Dashboard() {
     : null;
   const tasaBloqueo = totalAccesos > 0
     ? Math.round((stats.kpis.intentosFallidosHoy / totalAccesos) * 100)
+    : 0;
+  // % del personal activo que está ahora mismo en planta (antes hardcodeado en 63.8%)
+  const capacidadOperativa = stats.kpis.empleadosActivos > 0
+    ? Math.min(
+        100,
+        Math.round((stats.kpis.aforoActual / stats.kpis.empleadosActivos) * 1000) / 10
+      )
     : 0;
 
   return (
@@ -268,13 +301,13 @@ export default function Dashboard() {
             <div className="flex items-center justify-between text-[11px] mb-1.5 font-mono">
               <span className="text-muted-foreground">Capacidad operativa</span>
               <span className="text-purple-600 dark:text-purple-400 font-semibold">
-                63.8% capacidad
+                {capacidadOperativa}% capacidad
               </span>
             </div>
             <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
               <div
                 className="h-full bg-purple-500 rounded-full transition-all duration-500"
-                style={{ width: "63.8%" }}
+                style={{ width: `${capacidadOperativa}%` }}
               />
             </div>
           </div>
@@ -308,20 +341,37 @@ export default function Dashboard() {
             className={`px-3 py-1 rounded-full text-xs font-bold font-mono shrink-0 ${
               alertas.length > 0
                 ? "bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60"
-                : "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60"
+                : historialDisponible
+                ? "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60"
+                : "bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60"
             }`}
           >
-            {alertas.length} {alertas.length === 1 ? "alerta" : "alertas"}
+            {alertas.length > 0
+              ? `${alertas.length} ${alertas.length === 1 ? "alerta" : "alertas"}`
+              : historialDisponible
+              ? "0 alertas"
+              : "Sin datos"}
           </span>
         </div>
 
         {alertas.length === 0 ? (
-          <div className="p-6 flex items-center gap-3 text-sm text-muted-foreground">
-            <CheckCircle2 size={17} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>
-              Todo en orden: no se registraron accesos denegados en las últimas 24 horas.
-            </span>
-          </div>
+          historialDisponible ? (
+            <div className="p-6 flex items-center gap-3 text-sm text-muted-foreground">
+              <CheckCircle2 size={17} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>
+                Todo en orden: no se registraron accesos denegados en las últimas 24 horas.
+              </span>
+            </div>
+          ) : (
+            <div className="p-6 flex items-center gap-3 text-sm text-muted-foreground">
+              <ShieldAlert size={17} className="text-amber-600 dark:text-amber-400 shrink-0" />
+              <span>
+                No se pudo cargar el historial de accesos, por lo que las alertas de las
+                últimas 24 horas <strong className="text-foreground">no pueden confirmarse</strong>.
+                Reintenta la actualización del panel.
+              </span>
+            </div>
+          )
         ) : (
           <ul className="divide-y divide-border max-h-72 overflow-y-auto">
             {alertas.slice(0, 20).map((alerta, idx) => (

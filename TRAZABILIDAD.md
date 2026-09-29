@@ -367,3 +367,60 @@
 #### Verificación:
 * `mvn test` (JDK 17 en contenedor) y `pnpm build` (con `strict`) sin errores.
 * Nota: el equipo de desarrollo necesita un JDK completo (con `javac`); con solo JRE 25 el wrapper de Maven no puede compilar.
+
+---
+
+### 🧩 Fase 17: Corrección de antipatrones detectados en la segunda auditoría
+* **Fecha:** 2026-09-29
+* **Objetivo:** Eliminar los antipatrones de persistencia, mapeo y manejo de errores identificados en la auditoría de antipatrones, priorizando los 3 bugs ya materializados y los N+1 de queries.
+
+#### Bugs corregidos:
+1. **Filtros de fecha muertos en el historial** ([`HistorialAccesos.tsx`](./room911-frontend/src/pages/HistorialAccesos.tsx)): `dateFrom`/`dateTo` tenían UI pero `filteredLogs` nunca los aplicaba. Ahora el filtro de rango se aplica (comparación lexicográfica sobre la fecha ISO del evento); los campos inician vacíos ("todo el historial") para no alterar la vista por defecto, y cambiarlos resetea la paginación.
+2. **Mapeo incorrecto en `AuditoriaMapper`** ([`AuditoriaMapper.java`](./backend_911/backend/src/main/java/com/room911/mapper/AuditoriaMapper.java)): `.accion(auditoria.getDescripcion())` descartaba el campo `accion` real de la entidad. Ahora `accion` y `descripcion` se mapean cada uno a su campo, con null-safety sobre `administrador`.
+3. **Spinner infinito ante errores de carga** ([`Dashboard.tsx`](./room911-frontend/src/pages/Dashboard.tsx), [`HistorialAccesos.tsx`](./room911-frontend/src/pages/HistorialAccesos.tsx)): los `catch { /* Fallback */ }` vacíos dejaban la pantalla cargando indefinidamente. Ahora muestran toast de error, banner con botón "Reintentar" (Dashboard: pantalla de error dedicada si no hay datos previos).
+
+#### Antipatrones de persistencia corregidos:
+4. **N+1 en intentos e historial de acceso:** `AccessAttempt.empleado` e `HistorialAcceso.empleado` eran `@ManyToOne` EAGER (inconsistente con `Empleado.departamento` LAZY). Ahora son LAZY y los repositorios (`AccessAttemptRepository`, `HistorialAccesoRepository`) usan `@EntityGraph(attributePaths = {"empleado", "empleado.departamento"})` en todos los métodos de listado/búsqueda, alineados con el patrón ya existente en `EmpleadoRepository`.
+5. **N+1 de agregación en departamentos:** `DepartamentoServiceImpl.listar()` ejecutaba un `countByDepartamentoIdAndActivoTrue` por fila. Nueva query `GROUP BY` (`EmpleadoRepository.contarActivosPorDepartamento`) que trae todos los conteos en una sola consulta; los métodos unitarios (`guardar`, `actualizar`, `buscarPorId`) conservan el conteo puntual.
+
+#### Antipatrones de mapeo y errores corregidos:
+6. **NPE latentes en mappers:** `HistorialAccesoMapper`, `AccessAttemptMapper` y `EmpleadoMapper` encadenaban `getEmpleado().getDepartamento().getNombre()` sin null-checks. Ahora todos resuelven las relaciones en variables locales y toleran empleado o departamento ausentes (con los mismos valores por defecto que ya usaban: `"Empleado no registrado"`, `"-"`).
+7. **Catch-swallowing en `AccessServiceImpl`:** `catch (NumberFormatException ignored) {}` y `catch (Exception ignored)` silenciaban la causa. Ahora capturan la excepción específica (`URISyntaxException` en el parsing de QR) y registran la causa a nivel `debug` conservando el fallback original.
+8. **Intento huérfano silencioso:** `AccessAttemptServiceImpl.save()` aceptaba en silencio un `empleadoId` inexistente (`orElse(null)`), guardando intentos sin empleado. Ahora lanza `IllegalArgumentException` (HTTP 400 vía `GlobalExceptionHandler`) cuando el id se informa pero no existe; sin `empleadoId` se permite el intento de empleado no registrado.
+
+#### Antipatrones de frontend corregidos:
+9. **Estado muerto:** eliminado `const [, setLoading] = useState(true)` y sus asignaciones huérfanas en `Empleados.tsx`, `HistorialAccesos.tsx` y `Administradores.tsx`.
+10. **`setTimeout` sin cleanup en el simulador** ([`SimuladorAcceso.tsx`](./room911-frontend/src/pages/SimuladorAcceso.tsx)): el retardo de 600 ms que emula el punto de acceso se guarda en un `useRef` y se cancela al desmontar el componente, evitando `setState` sobre un componente desmontado y ejecuciones duplicadas si se simula dos veces seguidas.
+
+#### Pendiente (fases futuras, requieren cambio de contrato o migración):
+* Paginación en servidor (`Pageable`) para `/intento-acceso`, historial, auditoría y empleados: hoy los listados completos se filtran/paginan en el cliente.
+* Enum de roles (`SUPER_ADMIN`, `ADMIN_ACCESOS`, `ADMIN_SISTEMAS`) para eliminar el stringly-typing en entidad y `@PreAuthorize`.
+* Doble semántica "legado" en `AccessServiceImpl` (acceso sin puerta = concedido) y catálogo de puntos de acceso triplicado (backend + simulador).
+* Reglas de negocio duplicadas en `SimuladorAcceso.tsx` (reimplementación cliente de horarios/zonas que ya diverge del backend).
+
+#### Verificación:
+* `mvn test`: 17/17 tests en verde, BUILD SUCCESS.
+* `pnpm build` (con `tsc -b && strict`): sin errores.
+
+---
+
+### 🛠️ Fase 18: Antipatrones de seguridad y honestidad de datos (segunda ronda)
+* **Fecha:** 2026-09-29
+* **Objetivo:** Corregir los hallazgos nuevos de la re-auditoría: fugas de memoria en filtros de seguridad, inconsistencia de autorización, y datos/falsos positivos engañosos en el Dashboard. Además: el backend ahora carga el `.env` local por sí mismo (`spring.config.import`) para arrancar igual desde VS Code, Maven o terminal sin variables exportadas.
+
+#### Fugas de memoria y endurecimiento (backend):
+1. **`RegistroIntentosLogin`:** el mapa de intentos fallidos nunca expurgaba entradas (un atacante que spammea usuarios inventados crecía el mapa sin límite; `limpiar` solo se invoca en login exitoso). Ahora purga entradas vencidas cuando el tamaño supera `MAX_REGISTROS` (10.000).
+2. **`AccesoApiKeyFilter`:** la ventana fija de rate limit se sustituye por **ventana deslizante** (cola de marcas por IP, sin ráfagas de 2× en el borde de ventana) y las IPs que no vuelven se expulsan del mapa al superar `MAX_IPS` (10.000). Documentadas las limitaciones conocidas: rate limit aplicado antes de validar la API key (intencional, frena su fuerza bruta) y `X-Forwarded-For` no confiable tras proxy.
+
+#### Autorización consistente (backend):
+3. **GETs de `/api/intento-acceso` con `@PreAuthorize` explícito** (`SUPER_ADMIN`, `ADMIN_ACCESOS`, `ADMIN_SISTEMAS`): coincide con la visibilidad real de las páginas `/historial` y `/dashboard` en el frontend (Sidebar `roles: null`); restringirlos a 2 roles rompería la vista para ADMIN_SISTEMAS. El POST y el PDF conservan su restricción a `SUPER_ADMIN`/`ADMIN_ACCESOS`.
+4. **`HistorialAccesoRepository.findById` con `@EntityGraph`**: iguala el criterio de `AccessAttemptRepository` y elimina 2 queries extra por registro en `buscarPorId`/`registrarSalida`.
+
+#### Honestidad de datos (frontend):
+5. **Dashboard sin falso "todo en orden":** si la carga del historial falla pero el resumen OK, la sección de alertas ya no afirma que no hubo denegados; muestra aviso ámbar ("no pueden confirmarse") y badge "Sin datos" en lugar del verde "0 alertas".
+6. **"Capacidad operativa" ya no está hardcodeada en 63.8%:** se calcula de datos reales (`aforoActual / empleadosActivos`, acotado a 100%).
+
+#### Verificación:
+* `mvn test`: 17/17 en verde, BUILD SUCCESS.
+* `pnpm build`: sin errores.
+* Pendiente (fases mayores, requieren cambio de contrato/migración): paginación en servidor (`Pageable`), enum de roles, unificación del catálogo de puntos de acceso backend/simulador, AuthContext, CSS muerto de `src/styles/`, MapStruct.

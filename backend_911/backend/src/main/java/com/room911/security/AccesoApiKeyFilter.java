@@ -10,10 +10,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Protege la superficie pública /api/acceso/** (consumida por lectores
@@ -22,8 +22,12 @@ import java.util.concurrent.atomic.AtomicLong;
  * 1. API key por dispositivo (cabecera X-Api-Key contra ACCESO_API_KEY),
  *    comparada en tiempo constante. Fail-closed: si la variable no está
  *    configurada se rechaza TODO para no dejar el control de acceso abierto.
- * 2. Rate limit por IP (ventana fija de 1 minuto) para impedir el spam de
- *    intentos en la auditoría y la enumeración de credenciales.
+ * 2. Rate limit por IP (ventana deslizante de 1 minuto) para impedir el spam
+ *    de intentos en la auditoría y la enumeración de credenciales. Se aplica
+ *    ANTES de validar la API key para frenar también su fuerza bruta.
+ *    Limitación conocida: tras un reverse proxy todas las clientes comparten
+ *    la IP del proxy (no se confía en X-Forwarded-For porque es spoofeable);
+ *    en ese escenario conviene limitar por IP real en el proxy.
  */
 @Slf4j
 public class AccesoApiKeyFilter extends OncePerRequestFilter {
@@ -31,11 +35,11 @@ public class AccesoApiKeyFilter extends OncePerRequestFilter {
     private static final String CABECERA_API_KEY = "X-Api-Key";
     private static final int MAX_PETICIONES_POR_MINUTO = 60;
     private static final long VENTANA_MS = 60_000L;
+    /** Tope de IPs antes de expurgar (evita crecimiento ilimitado con IPs rotativas). */
+    private static final int MAX_IPS = 10_000;
 
     private final String apiKey;
-    private final Map<String, Ventana> peticionesPorIp = new ConcurrentHashMap<>();
-
-    private record Ventana(AtomicLong inicio, AtomicInteger contador) {}
+    private final Map<String, Deque<Long>> peticionesPorIp = new ConcurrentHashMap<>();
 
     public AccesoApiKeyFilter(String apiKey) {
         this.apiKey = apiKey;
@@ -81,14 +85,28 @@ public class AccesoApiKeyFilter extends OncePerRequestFilter {
 
     private boolean dentroDelLimite(String ip) {
         long ahora = System.currentTimeMillis();
-        Ventana ventana = peticionesPorIp.compute(ip, (k, actual) -> {
-            if (actual == null || ahora - actual.inicio().get() >= VENTANA_MS) {
-                return new Ventana(new AtomicLong(ahora), new AtomicInteger(1));
+        // compute es atómico por clave: toda mutación de la cola ocurre aquí dentro.
+        Deque<Long> marcas = peticionesPorIp.compute(ip, (k, actual) -> {
+            Deque<Long> cola = (actual != null) ? actual : new ArrayDeque<>();
+            while (!cola.isEmpty() && ahora - cola.peekFirst() >= VENTANA_MS) {
+                cola.pollFirst();
             }
-            actual.contador().incrementAndGet();
-            return actual;
+            cola.addLast(ahora);
+            return cola;
         });
-        return ventana.contador().get() <= MAX_PETICIONES_POR_MINUTO;
+        purgarIpsVencidas(ahora);
+        return marcas.size() <= MAX_PETICIONES_POR_MINUTO;
+    }
+
+    /** Descarta las colas cuya última petición ya salió de la ventana (IPs que no vuelven). */
+    private void purgarIpsVencidas(long ahora) {
+        if (peticionesPorIp.size() <= MAX_IPS) {
+            return;
+        }
+        peticionesPorIp.entrySet().removeIf(e -> {
+            Long ultima = e.getValue().peekLast();
+            return ultima == null || ahora - ultima >= VENTANA_MS;
+        });
     }
 
     private boolean comparacionSegura(String recibida, String esperada) {

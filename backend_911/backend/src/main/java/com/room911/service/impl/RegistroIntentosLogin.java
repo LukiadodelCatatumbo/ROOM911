@@ -18,6 +18,12 @@ public class RegistroIntentosLogin {
 
     private static final int MAX_INTENTOS = 5;
     private static final long VENTANA_MS = 15 * 60_000L;
+    /**
+     * Tope de entradas antes de expurgar: un atacante que spammea usuarios
+     * inventados (que nunca llegan a `limpiar` por login exitoso) no puede
+     * hacer crecer el mapa indefinidamente (DoS de memoria).
+     */
+    private static final int MAX_REGISTROS = 10_000;
 
     private record Registro(long primerFallo, int fallos) {}
 
@@ -39,6 +45,7 @@ public class RegistroIntentosLogin {
     }
 
     public void registrarFallo(String usuario) {
+        purgarSiNecesario();
         long ahora = System.currentTimeMillis();
         fallosPorUsuario.compute(usuario, (k, actual) -> {
             if (actual == null || ahora - actual.primerFallo() >= VENTANA_MS) {
@@ -50,5 +57,15 @@ public class RegistroIntentosLogin {
 
     public void limpiar(String usuario) {
         fallosPorUsuario.remove(usuario);
+    }
+
+    /** Expulsa del mapa las entradas cuya ventana ya expiró y que nadie va a consultar de nuevo. */
+    private void purgarSiNecesario() {
+        if (fallosPorUsuario.size() <= MAX_REGISTROS) {
+            return;
+        }
+        long ahora = System.currentTimeMillis();
+        fallosPorUsuario.entrySet().removeIf(
+                e -> ahora - e.getValue().primerFallo() >= VENTANA_MS);
     }
 }

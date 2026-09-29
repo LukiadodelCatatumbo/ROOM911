@@ -16,6 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AccessAttemptController {
     private final AccessAttemptService accessAttemptService;
+    private final PdfService pdfService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
@@ -23,17 +24,22 @@ public class AccessAttemptController {
         return ResponseEntity.ok(accessAttemptService.save(dto));
     }
 
+    // Lecturas visibles a los tres roles: coincide con la visibilidad de
+    // /historial y /dashboard en el frontend (Sidebar roles: null).
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS', 'ADMIN_SISTEMAS')")
     public ResponseEntity<List<AccessAttemptDTO>> findAll(){
         return ResponseEntity.ok(accessAttemptService.findAll());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS', 'ADMIN_SISTEMAS')")
     public ResponseEntity<AccessAttemptDTO> findById(@PathVariable Long id){
         return ResponseEntity.ok(accessAttemptService.findById(id));
     }
 
     @GetMapping("/empleado/{empleadoId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS', 'ADMIN_SISTEMAS')")
     public ResponseEntity<List<AccessAttemptDTO>> historialEmpleado(
             @PathVariable Long empleadoId) {
 
@@ -43,6 +49,7 @@ public class AccessAttemptController {
     }
 
     @GetMapping("/empleado/{empleadoId}/fechas")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS', 'ADMIN_SISTEMAS')")
     public ResponseEntity<List<AccessAttemptDTO>> historialPorFechas(
             @PathVariable Long empleadoId,
             @RequestParam LocalDateTime inicio,
@@ -56,8 +63,6 @@ public class AccessAttemptController {
                 )
         );
     }
-
-    private final PdfService pdfService;
 
     @GetMapping("/pdf/{empleadoId}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
