@@ -22,6 +22,9 @@ public interface HistorialAccesoRepository  extends JpaRepository<HistorialAcces
     @EntityGraph(attributePaths = {"empleado", "empleado.departamento"})
     List<HistorialAcceso> findByEmpleadoId(Long empleadoId);
 
+    /** Anti-passback: ¿tiene el empleado un ingreso sin salida registrada? */
+    boolean existsByEmpleadoIdAndFechaSalidaIsNull(Long empleadoId);
+
     @Override
     @EntityGraph(attributePaths = {"empleado", "empleado.departamento"})
     Optional<HistorialAcceso> findById(Long id);

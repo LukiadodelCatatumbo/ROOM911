@@ -11,6 +11,7 @@ import com.room911.exception.EstadoInvalidoException;
 import com.room911.mapper.EmpleadoMapper;
 import com.room911.repository.DepartamentoRepository;
 import com.room911.repository.EmpleadoRepository;
+import com.room911.service.interfaces.AuditoriaService;
 import com.room911.service.interfaces.EmpleadoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ public class EmpleadoServiceImpl implements EmpleadoService {
 
     private final EmpleadoRepository empleadoRepository;
     private final DepartamentoRepository departamentoRepository;
+    private final AuditoriaService auditoriaService;
 
     @Override
     public EmpleadoResponseDTO guardar(EmpleadoDTO dto) {
@@ -44,6 +46,8 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         Departamento departamento = departamentoRepository.findById(dto.getDepartamentoId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Departamento no encontrado"));
 
+        validarCapacidadDepartamento(departamento, 1);
+
         Empleado empleado = Empleado.builder()
                 .nombre(dto.getNombre())
                 .apellido(dto.getApellido())
@@ -57,6 +61,10 @@ public class EmpleadoServiceImpl implements EmpleadoService {
                 .build();
         Empleado guardado = empleadoRepository.save(empleado);
         log.info("Empleado registrado exitosamente: {} con ID {}", guardado.getNombre(), guardado.getId());
+        auditoriaService.registrarOperacion("Crear empleado",
+                "documento=" + guardado.getDocumento()
+                        + ", cargo=" + guardado.getCargo()
+                        + ", departamento=" + departamento.getNombre());
         return EmpleadoMapper.toDTO(guardado);
     }
 
@@ -116,6 +124,15 @@ public class EmpleadoServiceImpl implements EmpleadoService {
 
         Departamento departamento = departamentoRepository.findById(dto.getDepartamentoId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Departamento no encontrado"));
+
+        // La capacidad solo se consume si el empleado cambia de departamento.
+        if (departamento.getId().equals(
+                empleado.getDepartamento() != null ? empleado.getDepartamento().getId() : null)) {
+            validarCapacidadDepartamento(departamento, 0);
+        } else {
+            validarCapacidadDepartamento(departamento, 1);
+        }
+
         empleado.setNombre(dto.getNombre());
         empleado.setApellido(dto.getApellido());
         empleado.setDocumento(dto.getDocumento());
@@ -129,6 +146,11 @@ public class EmpleadoServiceImpl implements EmpleadoService {
 
         Empleado actualizado = empleadoRepository.save(empleado);
         log.info("Empleado actualizado exitosamente con ID {}", actualizado.getId());
+        auditoriaService.registrarOperacion("Actualizar empleado",
+                "id=" + actualizado.getId()
+                        + ", documento=" + actualizado.getDocumento()
+                        + ", departamento=" + departamento.getNombre()
+                        + ", accesoPermitido=" + actualizado.getAccesoPermitido());
         return EmpleadoMapper.toDTO(actualizado);
     }
 
@@ -141,6 +163,9 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         empleado.setFechaActualizacion(LocalDateTime.now());
         empleadoRepository.save(empleado);
         log.info("Empleado con ID {} marcado como inactivo (eliminación lógica)", id);
+        auditoriaService.registrarOperacion("Eliminar empleado",
+                "id=" + id + ", documento=" + empleado.getDocumento()
+                        + " (borrado lógico: activo=false)");
     }
 
     @Override
@@ -154,6 +179,12 @@ public class EmpleadoServiceImpl implements EmpleadoService {
 
         Departamento departamento = departamentoRepository.findById(departamentoId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Departamento no encontrado"));
+
+        // Cupo disponible del departamento: se consume por cada importado.
+        Integer capacidadMaxima = departamento.getCapacidadMaxima();
+        long ocupados = (capacidadMaxima != null && capacidadMaxima > 0)
+                ? empleadoRepository.countByDepartamentoIdAndActivoTrue(departamentoId)
+                : 0;
 
         try (CSVReader csvReader = new CSVReader(new InputStreamReader(archivo.getInputStream()))) {
             String[] datos;
@@ -189,6 +220,16 @@ public class EmpleadoServiceImpl implements EmpleadoService {
                     continue;
                 }
 
+                if (capacidadMaxima != null && capacidadMaxima > 0) {
+                    if (ocupados + 1 > capacidadMaxima) {
+                        throw new EstadoInvalidoException(
+                                "Capacidad máxima del departamento '" + departamento.getNombre()
+                                        + "' alcanzada (" + ocupados + "/" + capacidadMaxima
+                                        + "): la fila " + numeroFila + " supera el cupo");
+                    }
+                    ocupados++;
+                }
+
                 Empleado empleado = Empleado.builder()
                         .nombre(nombre)
                         .apellido(apellido)
@@ -206,8 +247,14 @@ public class EmpleadoServiceImpl implements EmpleadoService {
             }
 
             log.info("Importación finalizada. Importados: {}, Duplicados omitidos: {}", importados, duplicados);
+            if (importados > 0) {
+                auditoriaService.registrarOperacion("Importar empleados (CSV)",
+                        "departamento=" + departamento.getNombre()
+                                + ", importados=" + importados
+                                + ", duplicadosOmitidos=" + duplicados);
+            }
 
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | EstadoInvalidoException e) {
             throw e;
         } catch (Exception e) {
             log.error("Error al procesar archivo CSV", e);
@@ -232,6 +279,24 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         }
         if (!correo.matches("^[\\w.+-]+@[\\w-]+\\.[\\w.]+$")) {
             throw new IllegalArgumentException("Fila " + numeroFila + ": el correo no tiene un formato valido");
+        }
+    }
+
+    /**
+     * La capacidad_maxima del departamento es una regla de negocio (aforo de
+     * áreas GMP): si está definida, bloquea altas que la superen. Sin límite
+     * definido (o <= 0) el departamento es ilimitado.
+     */
+    private void validarCapacidadDepartamento(Departamento departamento, int nuevos) {
+        Integer capacidadMaxima = departamento.getCapacidadMaxima();
+        if (capacidadMaxima == null || capacidadMaxima <= 0) {
+            return;
+        }
+        long ocupados = empleadoRepository.countByDepartamentoIdAndActivoTrue(departamento.getId());
+        if (ocupados + nuevos > capacidadMaxima) {
+            throw new EstadoInvalidoException(
+                    "Capacidad máxima del departamento '" + departamento.getNombre()
+                            + "' alcanzada (" + ocupados + "/" + capacidadMaxima + ")");
         }
     }
 

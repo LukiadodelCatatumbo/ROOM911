@@ -519,3 +519,36 @@
 #### Verificación:
 * `mvn test`: 17/17 en verde. `pnpm build`: sin errores. `pnpm test`: 7/7.
 * End-to-end: `GET /intento-acceso/99999` → 404; `POST /intento-acceso` sin `exito` → 400 con `errores.exito`; `GET /acceso/colaboradores` devuelve solo `activo=true`.
+
+---
+
+### 🧠 Fase 23: Lógica de negocio y validaciones aditivas (mejoras 1-5)
+* **Fecha:** 2026-09-30
+* **Objetivo:** Añadir capas nuevas de lógica y validación sin modificar ningún flujo existente, priorizando las brechas de negocio documentadas.
+
+#### 1. Auditoría automática de operaciones (cierra HU-020):
+* Nuevo `AuditoriaService.registrarOperacion(accion, descripcion)`: resuelve el actor desde el contexto de seguridad (si no hay administrador autenticado, omite sin interrumpir), trunca a los límites de columna (acción 100, descripción 500) y persiste en `auditoria`.
+* Operaciones auditadas automáticamente: crear/actualizar/eliminar empleado, importación CSV (resumen con importados/duplicados), crear/actualizar/inhabilitar administrador (con detalle de cambio de rol y cambio de contraseña). Verificado end-to-end: crear empleado genera registro con actor "Super".
+
+#### 2. Capacidad máxima del departamento (dato dormido → regla activa):
+* `Departamento.capacidadMaxima` ahora se aplica: altas e importaciones CSV que superen el cupo responden 409 con ocupación exacta ("1/1"). En CSV el cupo se consume por fila y la transacción es atómica. Verificado: alta en "Investigación y Desarrollo" (1/1) → 409.
+
+#### 3. Anti-passback autoritativo:
+* `validarAcceso` deniega con "Ya se encuentra dentro de la planta" si el empleado tiene un ingreso abierto (`historial_acceso` sin `fecha_salida`), vía `existsByEmpleadoIdAndFechaSalidaIsNull`. Ciclo completo verificado en vivo: ingreso → segundo intento DENEGADO → salida (PUT) → nuevo intento evaluado por las reglas normales.
+* Corregido de paso: el endpoint manual de historial no aplicaba default a `accesoPermitido` (NOT NULL) y fallaba con 500/SQL crudo; ahora default true.
+
+#### 4. Guard: no degradar al último SUPER_ADMIN:
+* `AdministradorServiceImpl.actualizar()` ahora aplica la misma protección que `eliminar()`: cambiar el rol del último SUPER_ADMIN activo a algo distinto responde 409. Verificado en vivo.
+
+#### 5. Validaciones de robustez:
+* Rango invertido de fechas → 400: en `GET /intento-acceso/empleado/{id}/fechas` (inicio > fin) y en el filtro `desde`/`hasta` del paginado.
+* Política de contraseñas: mínimo 8 caracteres al crear administrador y en cambio voluntario (se valida en el service para no romper el PUT sin contraseña).
+* `@Size` alineados a columnas: EmpleadoDTO (nombre/apellido/cargo 100, correo 255), AdministradorDTO (nombre/apellido/usuario 100, correo 255), AccessAttemptDTO.mensaje (255).
+* `AccessServiceImpl.guardarIntento` trunca el mensaje a 255: un lector con texto largo ya no puede causar 500 por violación de columna.
+
+#### Verificación:
+* `mvn test`: 17/17 en verde, BUILD SUCCESS.
+* End-to-end contra PostgreSQL real: auditoría automática (actor+acción), 409 por capacidad, ciclo anti-passback completo, 409 al degradar último SUPER_ADMIN, 400 por fechas invertidas y por contraseña corta.
+
+#### No corregido en esta fase (requiere decisión de negocio):
+* Dominio de correo corporativo obligatorio, dígito verificador de cédula (rompería documentos de prueba), normalización case-insensitive de correos.

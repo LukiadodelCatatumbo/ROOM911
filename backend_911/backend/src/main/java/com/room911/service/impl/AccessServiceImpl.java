@@ -20,6 +20,7 @@ import com.room911.entity.Empleado;
 import com.room911.entity.PuntoAcceso;
 import com.room911.repository.AccessAttemptRepository;
 import com.room911.repository.EmpleadoRepository;
+import com.room911.repository.HistorialAccesoRepository;
 import com.room911.repository.PuntoAccesoRepository;
 import com.room911.service.interfaces.AccessService;
 
@@ -36,6 +37,7 @@ public class AccessServiceImpl implements AccessService {
     private final EmpleadoRepository empleadoRepository;
     private final AccessAttemptRepository accessAttemptRepository;
     private final PuntoAccesoRepository puntoAccesoRepository;
+    private final HistorialAccesoRepository historialAccesoRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -120,6 +122,21 @@ public class AccessServiceImpl implements AccessService {
                     empleado,
                     false,
                     "Acceso no permitido",
+                    null
+            );
+        }
+
+        // Anti-passback autoritativo: si ya tiene un ingreso sin salida
+        // registrada, no se concede otra entrada (evita doble conteo de aforo
+        // y compartición de credenciales).
+        if (historialAccesoRepository.existsByEmpleadoIdAndFechaSalidaIsNull(empleado.getId())) {
+            guardarIntento(empleado, false,
+                    "Anti-passback: ingreso previo sin salida registrada",
+                    empleado.getDocumento());
+            return construirRespuesta(
+                    empleado,
+                    false,
+                    "Acceso Bloqueado — Ya se encuentra dentro de la planta",
                     null
             );
         }
@@ -282,7 +299,10 @@ public class AccessServiceImpl implements AccessService {
         AccessAttempt intento = AccessAttempt.builder()
                 .fechaAcceso(LocalDateTime.now())
                 .exito(exito)
-                .mensaje(mensaje)
+                // Columna mensaje = 255: el input del lector (puerta) puede alargarla
+                .mensaje(mensaje != null && mensaje.length() > 255
+                        ? mensaje.substring(0, 254) + "…"
+                        : mensaje)
                 .documentoIntentado(documentoIntentado)
                 .empleado(empleado)
                 .build();

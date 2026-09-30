@@ -60,6 +60,10 @@ public class AccessAttemptServiceImpl implements AccessAttemptService {
 
         LocalDateTime inicio = (desde != null) ? desde.atStartOfDay() : null;
         LocalDateTime fin = (hasta != null) ? hasta.atTime(23, 59, 59) : null;
+        if (inicio != null && fin != null && inicio.isAfter(fin)) {
+            throw new IllegalArgumentException(
+                    "La fecha 'desde' no puede ser posterior a la fecha 'hasta'");
+        }
         String patron = (texto != null && !texto.isBlank())
                 ? "%" + texto.trim() + "%"
                 : "%";

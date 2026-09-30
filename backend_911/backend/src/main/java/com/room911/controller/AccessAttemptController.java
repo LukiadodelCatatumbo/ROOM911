@@ -77,6 +77,11 @@ public class AccessAttemptController {
             @RequestParam LocalDateTime inicio,
             @RequestParam LocalDateTime fin) {
 
+        if (inicio.isAfter(fin)) {
+            throw new IllegalArgumentException(
+                    "La fecha de inicio no puede ser posterior a la fecha fin");
+        }
+
         return ResponseEntity.ok(
                 accessAttemptService.findByEmpleadoAndFecha(
                         empleadoId,

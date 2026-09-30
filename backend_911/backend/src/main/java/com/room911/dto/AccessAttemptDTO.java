@@ -1,6 +1,7 @@
 package com.room911.dto;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -15,6 +16,7 @@ public class AccessAttemptDTO {
     private LocalDateTime fechaAcceso;
     @NotNull(message = "El resultado del intento es obligatorio")
     private Boolean exito;
+    @Size(max = 255, message = "El mensaje no puede superar 255 caracteres")
     private String mensaje;
     private Long empleadoId;
     private String nombreEmpleado;

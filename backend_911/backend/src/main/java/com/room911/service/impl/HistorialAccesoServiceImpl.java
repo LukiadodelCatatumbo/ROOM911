@@ -32,7 +32,8 @@ public class HistorialAccesoServiceImpl implements HistorialAccesoService {
         HistorialAcceso historial = HistorialAcceso.builder()
                 .empleado(empleado)
                 .fechaIngreso(LocalDateTime.now())
-                .accesoPermitido(dto.getAccesoPermitido())
+                // Columna NOT NULL: un registro de ingreso se considera permitido por defecto
+                .accesoPermitido(dto.getAccesoPermitido() != null ? dto.getAccesoPermitido() : true)
                 .observaciones(dto.getObservaciones())
                 .build();
         HistorialAcceso guardado = historialAccesoRepository.save(historial);
