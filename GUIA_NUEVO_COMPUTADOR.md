@@ -1,7 +1,9 @@
 # 📘 Guía: continuar ROOM911 en otro computador (vía GitHub)
 
-> Actualizada con los arreglos hasta el commit `0152ffa`: simulador con veredicto del servidor,
-> entidad `puntos_acceso`, endpoint público de colaboradores y dominio `date_time` (solo BD local).
+> Actualizada con los arreglos hasta las **Fases 17-23** de [`TRAZABILIDAD.md`](./TRAZABILIDAD.md):
+> paginación de servidor, catálogo único de puntos de acceso (`GET /api/acceso/puntos`),
+> auditoría automática de operaciones, capacidad máxima por departamento, anti-passback
+> server-side y migraciones `db/v2` → `db/v3` (columnas `date_time_*`).
 
 ---
 

@@ -82,11 +82,17 @@ export default function HistorialAccesos() {
           description: "Registros de eventos BPF sincronizados.",
         });
       }
-    } catch {
+    } catch (err: any) {
       setErrorCarga(true);
-      toast.error("No se pudo cargar el historial de auditoría", {
-        description: "Verifica la conexión con el servidor e inténtalo de nuevo.",
-      });
+      toast.error(
+        err?.response?.data?.mensaje ||
+          "No se pudo cargar el historial de auditoría",
+        {
+          description: err?.response?.data?.mensaje
+            ? "Corrige los filtros e inténtalo de nuevo."
+            : "Verifica la conexión con el servidor e inténtalo de nuevo.",
+        }
+      );
     } finally {
       if (showToast) setRefreshing(false);
     }
@@ -330,6 +336,7 @@ export default function HistorialAccesos() {
             <input
               type="date"
               value={dateTo}
+              min={dateFrom || undefined}
               max={todayStr}
               onChange={(e) => {
                 setDateTo(e.target.value);

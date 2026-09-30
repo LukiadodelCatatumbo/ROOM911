@@ -273,6 +273,20 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         if (nombre.isBlank() || apellido.isBlank() || cargo.isBlank()) {
             throw new IllegalArgumentException("Fila " + numeroFila + ": nombre, apellido y cargo son obligatorios");
         }
+        // Mismos @Size que el DTO: sin esto un campo largo explota tarde en BD
+        // con mensaje genérico y rollback de todo el lote.
+        if (nombre.length() > 100 || apellido.length() > 100) {
+            throw new IllegalArgumentException(
+                    "Fila " + numeroFila + ": nombre y apellido no pueden superar 100 caracteres");
+        }
+        if (cargo.length() > 100) {
+            throw new IllegalArgumentException(
+                    "Fila " + numeroFila + ": el cargo no puede superar 100 caracteres");
+        }
+        if (correo.length() > 255) {
+            throw new IllegalArgumentException(
+                    "Fila " + numeroFila + ": el correo no puede superar 255 caracteres");
+        }
         if (!documento.matches("\\d{10}")) {
             throw new IllegalArgumentException(
                     "Fila " + numeroFila + ": el documento debe tener exactamente 10 digitos numericos");

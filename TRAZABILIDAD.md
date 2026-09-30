@@ -552,3 +552,26 @@
 
 #### No corregido en esta fase (requiere decisión de negocio):
 * Dominio de correo corporativo obligatorio, dígito verificador de cédula (rompería documentos de prueba), normalización case-insensitive de correos.
+
+---
+
+### 🔧 Fase 24: Hallazgos de la cuarta auditoría
+* **Fecha:** 2026-09-30
+* **Objetivo:** Corregir los hallazgos medios/altos de la cuarta auditoría, salvo el anti-passback automático (pendiente de decisión de semántica de negocio).
+
+#### Corregidos:
+1. **`documentoIntentado` truncado a 20** (`AccessServiceImpl.guardarIntento`): una credencial pública >20 caracteres ya no causa error de BD; responde "Empleado no registrado". Verificado en vivo con credencial larga.
+2. **Unicidad de usuario/correo en `PUT /administradores`** (solo la tenía el POST): duplicar el usuario de otro admin ahora responde 409. Verificado en vivo.
+3. **`validarFilaImportacion` del CSV aplica los `@Size`** (nombre/apellido/cargo ≤100, correo ≤255): rechazo temprano por fila en lugar de fallo tardío en BD con rollback del lote.
+4. **`POST /historial-acceso` valida empleado activo y sin ingreso abierto** (409 en ambos casos), coherente con el anti-passback. Verificado en vivo. Fix incluido de la Fase 23: default `accesoPermitido=true`.
+5. **`DepartamentoDTO` con `@Size`** alineados a columnas (nombre/responsable 100, código/nivel 20, descripción 255) y `@PositiveOrZero` en capacidad.
+6. **Frontend:** el catch del historial muestra el `mensaje` real del backend (antes genérico), y el input "Hasta" se limita con `min` al valor de "Desde" (los rangos invertidos ya no son alcanzables desde la UI).
+7. **GUIA:** rótulo de commit obsoleto actualizado a referencia por Fases 17-23.
+
+#### Pendiente de decisión de negocio (no corregido):
+* **Historial automático del acceso**: el anti-passback y el aforo "en planta" operan sobre `historial_acceso`, que solo se llena manualmente. Decisión requerida: ¿el backend debe crear el ingreso automáticamente al conceder acceso (y cerrarlo al registrar salida)? Eso haría el aforo real y el anti-passback efectivo, cambiando la semántica del módulo.
+* Bajas documentadas: carrera TOCTOU en anti-passback (multi-instancia), divergencia del fallback offline del simulador (por punto vs global), autocorrección de página en Empleados/Administradores.
+
+#### Verificación:
+* `mvn test`: 17/17 en verde. `pnpm build`: sin errores. `pnpm test`: 7/7.
+* End-to-end: credencial larga → "Empleado no registrado" (sin error de BD); PUT con usuario duplicado → 409; historial para inactivo → 409; historial duplicado con ingreso abierto → 409.

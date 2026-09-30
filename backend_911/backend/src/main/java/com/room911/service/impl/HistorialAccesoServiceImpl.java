@@ -29,6 +29,17 @@ public class HistorialAccesoServiceImpl implements HistorialAccesoService {
         Empleado empleado = empleadoRepository.findById(dto.getEmpleadoId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Empleado no encontrado"));
 
+        if (!Boolean.TRUE.equals(empleado.getActivo())) {
+            throw new EstadoInvalidoException("El empleado se encuentra inactivo");
+        }
+
+        // Coherente con el anti-passback del endpoint de acceso: no se permite
+        // un segundo ingreso abierto para el mismo empleado.
+        if (historialAccesoRepository.existsByEmpleadoIdAndFechaSalidaIsNull(empleado.getId())) {
+            throw new EstadoInvalidoException(
+                    "El empleado ya tiene un ingreso sin salida registrada");
+        }
+
         HistorialAcceso historial = HistorialAcceso.builder()
                 .empleado(empleado)
                 .fechaIngreso(LocalDateTime.now())

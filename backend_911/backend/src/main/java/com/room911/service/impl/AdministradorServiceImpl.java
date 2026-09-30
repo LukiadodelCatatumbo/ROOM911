@@ -73,6 +73,17 @@ public class AdministradorServiceImpl implements AdministradorService {
     public Administrador actualizar(Long id, AdministradorDTO dto) {
         Administrador administrador = buscarPorId(id);
 
+        // Misma unicidad que el alta: sin esto, un PUT puede duplicar el
+        // usuario de otro admin (rompe login y atribución de auditoría).
+        if (!administrador.getUsuario().equals(dto.getUsuario())
+                && administradorRepository.existsByUsuarioAndActivoTrue(dto.getUsuario())) {
+            throw new RecursoDuplicadoException("El usuario ya existe");
+        }
+        if (!administrador.getCorreo().equals(dto.getCorreo())
+                && administradorRepository.existsByCorreoAndActivoTrue(dto.getCorreo())) {
+            throw new RecursoDuplicadoException("El correo ya existe");
+        }
+
         administrador.setNombre(dto.getNombre());
         administrador.setApellido(dto.getApellido());
         administrador.setCorreo(dto.getCorreo());

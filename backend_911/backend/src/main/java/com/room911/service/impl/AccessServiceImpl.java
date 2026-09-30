@@ -303,7 +303,11 @@ public class AccessServiceImpl implements AccessService {
                 .mensaje(mensaje != null && mensaje.length() > 255
                         ? mensaje.substring(0, 254) + "…"
                         : mensaje)
-                .documentoIntentado(documentoIntentado)
+                // Columna documento_intentado = 20: una credencial libre >20 chars
+                // no debe tumbar el INSERT (endpoint público)
+                .documentoIntentado(documentoIntentado != null && documentoIntentado.length() > 20
+                        ? documentoIntentado.substring(0, 20)
+                        : documentoIntentado)
                 .empleado(empleado)
                 .build();
 
