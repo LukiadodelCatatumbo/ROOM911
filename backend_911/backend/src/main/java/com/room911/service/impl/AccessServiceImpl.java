@@ -17,6 +17,7 @@ import com.room911.dto.ColaboradorSimuladorDTO;
 import com.room911.dto.PuntoAccesoSimuladorDTO;
 import com.room911.entity.AccessAttempt;
 import com.room911.entity.Empleado;
+import com.room911.entity.HistorialAcceso;
 import com.room911.entity.PuntoAcceso;
 import com.room911.repository.AccessAttemptRepository;
 import com.room911.repository.EmpleadoRepository;
@@ -136,7 +137,8 @@ public class AccessServiceImpl implements AccessService {
             return construirRespuesta(
                     empleado,
                     false,
-                    "Acceso Bloqueado — Ya se encuentra dentro de la planta",
+                    "Acceso Bloqueado — Ya se encuentra dentro de la planta"
+                            + " (requiere registro de salida)",
                     null
             );
         }
@@ -199,6 +201,7 @@ public class AccessServiceImpl implements AccessService {
                     "Acceso permitido: " + punto.getNombre(),
                     empleado.getDocumento()
             );
+            registrarIngresoAutomatico(empleado, punto);
 
             return construirRespuesta(
                     empleado,
@@ -214,6 +217,7 @@ public class AccessServiceImpl implements AccessService {
                 "Acceso permitido, bienvenido",
                 empleado.getDocumento()
         );
+        registrarIngresoAutomatico(empleado, null);
 
         return construirRespuesta(
                 empleado,
@@ -221,6 +225,26 @@ public class AccessServiceImpl implements AccessService {
                 "Acceso permitido, bienvenido",
                 null
         );
+    }
+
+    /**
+     * Historial automático del acceso (semántica aprobada en Fase 25): todo
+     * acceso concedido abre un ingreso en historial_acceso; la salida se
+     * registra por la vía administrativa (PUT /historial-acceso/{id}/salida).
+     * Esto hace efectivo el anti-passback y real el aforo "en planta".
+     */
+    private void registrarIngresoAutomatico(Empleado empleado, PuntoAcceso punto) {
+        String observaciones = punto != null
+                ? "Ingreso automático: " + punto.getNombre()
+                : "Ingreso automático (terminal sin punto)";
+        historialAccesoRepository.save(HistorialAcceso.builder()
+                .empleado(empleado)
+                .fechaIngreso(LocalDateTime.now())
+                .accesoPermitido(true)
+                .observaciones(observaciones.length() > 255
+                        ? observaciones.substring(0, 254) + "…"
+                        : observaciones)
+                .build());
     }
 
     /**

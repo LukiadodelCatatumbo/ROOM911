@@ -575,3 +575,27 @@
 #### Verificación:
 * `mvn test`: 17/17 en verde. `pnpm build`: sin errores. `pnpm test`: 7/7.
 * End-to-end: credencial larga → "Empleado no registrado" (sin error de BD); PUT con usuario duplicado → 409; historial para inactivo → 409; historial duplicado con ingreso abierto → 409.
+
+---
+
+### 🚪 Fase 25: Historial automático del acceso
+* **Fecha:** 2026-09-30
+* **Objetivo:** Decisión de negocio aprobada por el responsable: el backend crea el ingreso automáticamente al conceder acceso, haciendo efectivos el anti-passback y el aforo "en planta".
+
+#### Semántica implementada:
+1. **Todo acceso concedido abre un ingreso** en `historial_acceso` (`AccessServiceImpl.registrarIngresoAutomatico`), en ambas rutas (con punto validado y modo legado sin puerta). La observación registra el punto de entrada. Las salidas se registran por la vía administrativa existente (`PUT /historial-acceso/{id}/salida`).
+2. **El anti-passback pasa a ser efectivo**: mientras exista un ingreso abierto del empleado, cualquier nuevo intento responde `DENEGADO — Ya se encuentra dentro de la planta (requiere registro de salida)`. El mensaje guía el desbloqueo.
+3. **El aforo "en planta" del dashboard ahora es real**: refleja exactamente los ingresos abiertos generados por el flujo de acceso.
+4. Los intentos denegados no abren ingreso; el módulo manual (`POST /historial-acceso`) conserva sus validaciones de la Fase 24 (empleado activo, sin ingreso abierto).
+
+#### Trade-offs aceptados y documentados:
+* Un empleado sin salida registrada no puede volver a ingresar hasta que un administrador registre la salida (no hay lector de salida en el alcance del reto).
+* Carrera TOCTOU residual en multi-instancia (dos peticiones simultáneas podrían abrir dos ingresos): irrelevante en despliegue de instancia única; se resolvería con constraint única parcial o Redis al escalar.
+
+#### Verificación (ciclo completo end-to-end contra PostgreSQL):
+1. Entrada → CONCEDIDO, ingreso automático creado, aforo 0 → 1.
+2. Segundo intento → DENEGADO anti-passback.
+3. Salida administrativa → aforo 1 → 0.
+4. Re-entrada → CONCEDIDO.
+5. `GET /dashboard/resumen` → `enPlanta: 1` (coincide con el ingreso abierto real).
+* `mvn test`: 17/17 en verde, BUILD SUCCESS.
