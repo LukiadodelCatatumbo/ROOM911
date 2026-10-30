@@ -124,7 +124,7 @@ export default function HistorialAccesos() {
       toast.error("No hay registros para exportar");
       return;
     }
-    const headers = ["ID Evento", "Fecha", "Hora", "ID Empleado", "Nombre Personal", "Departamento", "Puerta / Esclusa", "Resultado", "Motivo / Detalle Tecnico"];
+    const headers = ["ID Evento", "Fecha", "Hora", "ID Empleado", "Nombre Personal", "Departamento", "Resultado", "Motivo / Detalle Tecnico"];
     const rows = registros.map((log) => [
       `"${log.id}"`,
       `"${log.fecha || ""}"`,
@@ -132,7 +132,6 @@ export default function HistorialAccesos() {
       `"${log.empleadoId || ""}"`,
       `"${(log.empleadoNombre || "").replace(/"/g, '""')}"`,
       `"${(log.departamento || "Produccion").replace(/"/g, '""')}"`,
-      `"${(log.puerta || "").replace(/"/g, '""')}"`,
       `"${log.resultado}"`,
       `"${(log.motivo || "Validacion conforme").replace(/"/g, '""')}"`,
     ]);
@@ -175,7 +174,7 @@ export default function HistorialAccesos() {
         <td style="padding: 8px; border: 1px solid #cbd5e1; font-family: monospace; font-size: 11px;">${log.id}</td>
         <td style="padding: 8px; border: 1px solid #cbd5e1; font-size: 11px;">${log.fecha || ""} ${log.hora || ""}</td>
         <td style="padding: 8px; border: 1px solid #cbd5e1; font-size: 11px; font-weight: bold;">${log.empleadoNombre || ""} <span style="font-family: monospace; font-weight: normal; color: #64748b;">(${log.empleadoId || ""})</span></td>
-        <td style="padding: 8px; border: 1px solid #cbd5e1; font-size: 11px;">${log.puerta}</td>
+        <td style="padding: 8px; border: 1px solid #cbd5e1; font-size: 11px;">${log.departamento || ""}</td>
         <td style="padding: 8px; border: 1px solid #cbd5e1; font-size: 11px; font-weight: bold; color: ${
           log.resultado === "CONCEDIDO" ? "#047857" : log.resultado === "DENEGADO" ? "#b91c1c" : "#b45309"
         };">${log.resultado}</td>
@@ -211,7 +210,7 @@ export default function HistorialAccesos() {
                 <th>ID Evento</th>
                 <th>Fecha y Hora</th>
                 <th>Personal Identificado</th>
-                <th>Puerta / Esclusa</th>
+                <th>Departamento</th>
                 <th>Resultado</th>
                 <th>Motivo / Detalle</th>
               </tr>
@@ -297,7 +296,7 @@ export default function HistorialAccesos() {
               />
               <input
                 type="text"
-                placeholder="Buscar por ID evento, personal o puerta..."
+                placeholder="Buscar por ID evento, personal o departamento..."
                 value={searchInput}
                 onChange={(e) => {
                   setSearchInput(e.target.value);
@@ -355,7 +354,7 @@ export default function HistorialAccesos() {
                 <th className="px-6 py-3 font-semibold">ID Evento</th>
                 <th className="px-6 py-3 font-semibold">Fecha y Hora</th>
                 <th className="px-6 py-3 font-semibold">Personal Identificado</th>
-                <th className="px-6 py-3 font-semibold">Puerta / Esclusa</th>
+                <th className="px-6 py-3 font-semibold">Departamento</th>
                 <th className="px-6 py-3 font-semibold">Resultado</th>
                 <th className="px-6 py-3 font-semibold">Motivo / Detalle Técnico</th>
               </tr>

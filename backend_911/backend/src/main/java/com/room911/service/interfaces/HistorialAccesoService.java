@@ -10,5 +10,6 @@ public interface HistorialAccesoService {
     List<HistorialAccesoResponseDTO> listar();
     HistorialAccesoResponseDTO buscarPorId(Long id);
     List<HistorialAccesoResponseDTO> listarPorEmpleado(Long empleadoId);
+    List<HistorialAccesoResponseDTO> listarEnPlanta();
     HistorialAccesoResponseDTO registrarSalida(Long id);
 }

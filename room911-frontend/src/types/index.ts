@@ -122,3 +122,15 @@ export interface ValidateAccessResponse {
   puerta?: string;
   timestamp: string;
 }
+
+/** HistorialAccesoResponseDTO del backend (GET /historial-acceso/en-planta). */
+export interface IngresoEnPlanta {
+  id: number;
+  empleadoId: number;
+  nombreEmpleado: string;
+  documento: string;
+  departamento: string;
+  fechaIngreso: string;
+  fechaSalida?: string | null;
+  observaciones?: string;
+}

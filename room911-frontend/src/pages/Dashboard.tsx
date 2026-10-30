@@ -9,6 +9,7 @@ import {
   ScanLine,
   RefreshCw,
   ShieldAlert,
+  LogOut,
 } from "lucide-react";
 import {
   AreaChart,
@@ -24,21 +25,29 @@ import {
 } from "recharts";
 import { dashboardService } from "../services/dashboardService";
 import { accesoService } from "../services/accesoService";
-import { DashboardStats, AccessEvent, AccessEntry } from "../types";
+import { DashboardStats, AccessEvent, AccessEntry, IngresoEnPlanta } from "../types";
 import { toast } from "sonner";
+import axios from "axios";
 import { AccesoBadge } from "../components/common/Badge";
 import { fechaLocalISO } from "../utils/fechas";
+import { useAuth } from "../context/AuthContext";
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [alertas, setAlertas] = useState<AccessEntry[]>([]);
+  // Ingresos abiertos (personal en planta): alimenta el registro de salidas.
+  const [enPlanta, setEnPlanta] = useState<IngresoEnPlanta[]>([]);
   // false cuando la carga del historial falla: evita el falso "todo en orden".
   const [historialDisponible, setHistorialDisponible] = useState(true);
+  const [enPlantaDisponible, setEnPlantaDisponible] = useState(true);
+  const [salidaEnCurso, setSalidaEnCurso] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorCarga, setErrorCarga] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   // Guard anti-race: solo la petición más reciente puede escribir estado.
   const peticionIdRef = useRef(0);
+  // El endpoint de salidas exige SUPER_ADMIN o ADMIN_ACCESOS (@PreAuthorize).
+  const { puedeGestionarPersonal } = useAuth();
 
   const loadData = async (showToast = false) => {
     if (showToast) setRefreshing(true);
@@ -49,18 +58,21 @@ export default function Dashboard() {
       const desde24h = fechaLocalISO(
         new Date(Date.now() - 24 * 60 * 60 * 1000)
       );
-      const [data, historialRes] = await Promise.all([
+      const [data, historialRes, plantaRes] = await Promise.all([
         dashboardService.obtenerResumen(),
         accesoService
           .listarHistorial({ exito: false, desde: desde24h, tamano: 50 })
           .then((p) => p.contenido)
           .catch(() => null),
+        accesoService.listarEnPlanta().catch(() => null),
       ]);
       if (miPeticion !== peticionIdRef.current) {
         return; // llegó tarde: una petición más reciente ya tomó el turno
       }
       setStats(data);
       setErrorCarga(false);
+      setEnPlantaDisponible(Array.isArray(plantaRes));
+      setEnPlanta(Array.isArray(plantaRes) ? plantaRes : []);
       const historial = Array.isArray(historialRes) ? historialRes : [];
       setHistorialDisponible(Array.isArray(historialRes));
       const aMilisegundos = (ts: string) =>
@@ -93,6 +105,28 @@ export default function Dashboard() {
     loadData();
   }, []);
 
+  /** Registro administrativo de salida: cierra el ingreso abierto y refresca aforo y lista. */
+  const handleRegistrarSalida = async (ingreso: IngresoEnPlanta) => {
+    setSalidaEnCurso(ingreso.id);
+    try {
+      await accesoService.registrarSalida(ingreso.id);
+      toast.success(`Salida registrada: ${ingreso.nombreEmpleado}`, {
+        description: "Ingreso cerrado; el anti-passback queda liberado para re-ingreso.",
+      });
+      await loadData();
+    } catch (err: unknown) {
+      const mensaje =
+        axios.isAxiosError(err) && typeof err.response?.data?.mensaje === "string"
+          ? err.response.data.mensaje
+          : "No se pudo registrar la salida";
+      toast.error(mensaje, {
+        description: "El ingreso permanece abierto; reintenta o revisa los permisos.",
+      });
+    } finally {
+      setSalidaEnCurso(null);
+    }
+  };
+
   if (errorCarga && !stats) {
     return (
       <div className="p-8 flex flex-col items-center justify-center gap-3 min-h-[400px]">
@@ -121,7 +155,13 @@ export default function Dashboard() {
     );
   }
 
-  const activePercent = stats.kpis.totalEmpleados > 0 
+  /** "2026-09-30T14:23:05.123" → "2026-09-30 14:23" */
+  const formatearMomento = (ts: string) => {
+    const [fecha, hora] = ts.includes("T") ? ts.split("T") : ts.split(" ");
+    return hora ? `${fecha} ${hora.substring(0, 5)}` : (fecha ?? ts);
+  };
+
+  const activePercent = stats.kpis.totalEmpleados > 0
     ? Math.round((stats.kpis.empleadosActivos / stats.kpis.totalEmpleados) * 100) 
     : 100;
   const totalAccesos = stats.kpis.accesosHoy + stats.kpis.intentosFallidosHoy;
@@ -325,6 +365,90 @@ export default function Dashboard() {
             Presencia simultánea en áreas de trabajo
           </p>
         </div>
+      </div>
+
+      {/* Personal en Planta: ingresos abiertos + registro administrativo de salidas */}
+      <div className="bg-white dark:bg-card rounded-lg border border-border shadow-2xs overflow-hidden">
+        <div className="p-5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Activity
+                size={16}
+                className={
+                  enPlanta.length > 0
+                    ? "text-purple-600 dark:text-purple-400"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }
+              />
+              Personal en Planta
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Ingresos abiertos sin salida registrada: el anti-passback mantiene
+              bloqueado el re-ingreso hasta cerrarlos aquí.
+            </p>
+          </div>
+          <span
+            className={`self-start sm:self-auto px-3 py-1 rounded-full text-xs font-bold font-mono shrink-0 ${
+              enPlanta.length > 0
+                ? "bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-200/60 dark:border-purple-800/60"
+                : "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60"
+            }`}
+          >
+            {enPlanta.length} {enPlanta.length === 1 ? "persona" : "personas"} en planta
+          </span>
+        </div>
+
+        {!enPlantaDisponible ? (
+          <div className="p-6 flex items-center gap-3 text-sm text-muted-foreground">
+            <ShieldAlert size={17} className="text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>
+              No se pudo cargar el personal en planta: este módulo requiere rol
+              SUPER_ADMIN o ADMIN_ACCESOS.
+            </span>
+          </div>
+        ) : enPlanta.length === 0 ? (
+          <div className="p-6 flex items-center gap-3 text-sm text-muted-foreground">
+            <CheckCircle2 size={17} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>
+              Nadie se encuentra dentro de la planta: no hay ingresos abiertos que
+              cerrar.
+            </span>
+          </div>
+        ) : (
+          <ul className="divide-y divide-border max-h-72 overflow-y-auto">
+            {enPlanta.map((ingreso) => (
+              <li
+                key={ingreso.id}
+                className="px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs hover:bg-purple-500/5 transition-colors"
+              >
+                <div className="sm:w-52 shrink-0 min-w-0">
+                  <span className="font-semibold text-foreground truncate block">
+                    {ingreso.nombreEmpleado}
+                  </span>
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {ingreso.documento || `ID ${ingreso.empleadoId}`}
+                    {ingreso.departamento ? ` · ${ingreso.departamento}` : ""}
+                  </span>
+                </div>
+                <span className="font-mono text-muted-foreground flex-1 min-w-0 truncate">
+                  Ingreso: {formatearMomento(ingreso.fechaIngreso)}
+                  {ingreso.observaciones ? ` · ${ingreso.observaciones}` : ""}
+                </span>
+                {puedeGestionarPersonal && (
+                  <button
+                    onClick={() => handleRegistrarSalida(ingreso)}
+                    disabled={salidaEnCurso === ingreso.id}
+                    className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-secondary border border-border hover:bg-muted text-foreground text-[11px] font-semibold rounded-md shadow-2xs transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
+                    title="Registrar la salida y liberar el anti-passback"
+                  >
+                    <LogOut size={13} />
+                    <span>{salidaEnCurso === ingreso.id ? "Registrando..." : "Registrar salida"}</span>
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Alertas de Seguridad (últimas 24 horas) */}
@@ -556,7 +680,7 @@ export default function Dashboard() {
               <tr>
                 <th className="px-6 py-3 font-semibold">Hora</th>
                 <th className="px-6 py-3 font-semibold">Personal Identificado</th>
-                <th className="px-6 py-3 font-semibold">Puerta / Esclusa</th>
+                <th className="px-6 py-3 font-semibold">Departamento</th>
                 <th className="px-6 py-3 font-semibold">Resultado</th>
                 <th className="px-6 py-3 font-semibold">Detalle Técnico</th>
               </tr>

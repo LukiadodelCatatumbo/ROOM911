@@ -60,6 +60,16 @@ public class HistorialAccesoServiceImpl implements HistorialAccesoService {
     }
 
     @Override
+    public List<HistorialAccesoResponseDTO> listarEnPlanta() {
+        // Ingresos abiertos ordenados del más reciente al más antiguo: el
+        // panel de aforo y las salidas administrativas operan sobre esta lista.
+        return historialAccesoRepository.findByFechaSalidaIsNullOrderByFechaIngresoDesc()
+                .stream()
+                .map(HistorialAccesoMapper::toDTO)
+                .toList();
+    }
+
+    @Override
     public HistorialAccesoResponseDTO buscarPorId(Long id){
         HistorialAcceso historial = historialAccesoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Historial de acceso no encontrado"));

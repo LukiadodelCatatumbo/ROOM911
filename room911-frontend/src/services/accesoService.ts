@@ -2,6 +2,7 @@ import api from "./api";
 import {
   AccessEntry,
   AccessResult,
+  IngresoEnPlanta,
   Pagina,
   PuntoAccesoRemoto,
   ValidateAccessResponse,
@@ -134,6 +135,20 @@ export const accesoService = {
   /** Catálogo autoritativo de puntos de acceso (backend); el simulador lo consume y guarda fallback offline. */
   async listarPuntos(): Promise<PuntoAccesoRemoto[]> {
     const response = await api.get<PuntoAccesoRemoto[]>("/acceso/puntos");
+    return response.data;
+  },
+
+  /** Personal en planta: ingresos abiertos (GET /historial-acceso/en-planta). */
+  async listarEnPlanta(): Promise<IngresoEnPlanta[]> {
+    const response = await api.get<IngresoEnPlanta[]>("/historial-acceso/en-planta");
+    return response.data;
+  },
+
+  /** Registro administrativo de salida (PUT /historial-acceso/{id}/salida). */
+  async registrarSalida(ingresoId: number): Promise<IngresoEnPlanta> {
+    const response = await api.put<IngresoEnPlanta>(
+      `/historial-acceso/${ingresoId}/salida`
+    );
     return response.data;
   },
 };

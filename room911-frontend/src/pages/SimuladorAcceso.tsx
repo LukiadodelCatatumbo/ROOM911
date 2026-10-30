@@ -46,11 +46,6 @@ interface SimulationLog {
   horaLimite?: string;
 }
 
-interface AccessGrant {
-  hora: string;
-  puertaNombre: string;
-}
-
 /** Franjas horarias de acceso por punto de control. */
 /** Respaldo offline del catálogo; la fuente única es GET /api/acceso/puntos. */
 const FALLBACK_ACCESS_POINT_SCHEDULES: Record<string, AccessSchedule> = {
@@ -298,8 +293,6 @@ export default function SimuladorAcceso() {
   const [selectedDoorId, setSelectedDoorId] = useState("DOOR-PROD-01");
   const [simulating, setSimulating] = useState(false);
   const [recentLogs, setRecentLogs] = useState<SimulationLog[]>([]);
-  // Accesos vigentes por colaborador + punto (clave `${empleadoId}::${puntoId}`).
-  const [accessGrants, setAccessGrants] = useState<Record<string, AccessGrant>>({});
 
   // Control de horario para probar el acceso con una hora específica.
   const [useSimulatedTime, setUseSimulatedTime] = useState(false);
@@ -433,10 +426,6 @@ export default function SimuladorAcceso() {
     return `${door.nombre} · ${door.departamento}${horario}`;
   };
 
-  // Acceso ya vigente para esta combinación colaborador + punto.
-  const currentGrant =
-    accessGrants[`${selectedEmployee?.id}::${selectedDoorId}`];
-
   const accessSchedule =
     schedules[selectedAccessPoint.id] || DEFAULT_ACCESS_SCHEDULE;
 
@@ -515,41 +504,11 @@ export default function SimuladorAcceso() {
       const credencial =
         targetEmp.codigoQr || targetEmp.documentoIdentidad || targetEmp.id;
 
-      // Acceso ya vigente para este colaborador en este mismo punto:
-      // se informa sin volver a validar ni duplicar la auditoría.
-      const grantKey = `${empIdKey}::${selectedDoorId}`;
-      const existingGrant = accessGrants[grantKey];
-      if (existingGrant) {
-        setSimulating(false);
-        setResult({
-          status: "DENEGADO",
-          employeeName: empName,
-          mensaje: "Ya tiene acceso permitido",
-          details: `Acceso concedido a las ${existingGrant.hora} en ${existingGrant.puertaNombre}. No se necesita validar de nuevo.`,
-        });
-        toast.warning("Este colaborador ya tiene acceso permitido en este punto");
-
-        setRecentLogs((prev) => [
-          {
-            id: `SIM-${Date.now()}`,
-            hora: effectiveTimeStr,
-            empleadoNombre: empName,
-            empleadoId: empIdKey,
-            empleadoDept: empDept,
-            puertaNombre: selectedAccessPoint.nombre,
-            puertaDept: selectedAccessPoint.departamento,
-            resultado: "DENEGADO",
-            motivo: `Acceso repetido: ya permitido desde las ${existingGrant.hora}`,
-            horaLimite: schedule.horaFin,
-          },
-          ...prev,
-        ]);
-        return;
-      }
-
       // =========================================================================
-      // VEREDICTO DEL SERVIDOR (autoritativo: valida punto, horario y zona
-      // contra el catálogo de puntos_acceso en America/Bogota).
+      // VEREDICTO DEL SERVIDOR (autoritativo: valida punto, horario, zona y
+      // anti-passback contra la BD en America/Bogota). No hay atajo local:
+      // toda lectura se audita y el servidor decide, incluso tras una salida
+      // administrativa registrada sin recargar la página.
       // =========================================================================
       try {
         const veredicto = await accesoService.validarAcceso(credencial, selectedDoorId);
@@ -565,13 +524,6 @@ export default function SimuladorAcceso() {
             : "Veredicto del servidor.",
         });
         if (concedido) {
-          setAccessGrants((prev) => ({
-            ...prev,
-            [grantKey]: {
-              hora: effectiveTimeStr,
-              puertaNombre: veredicto.puerta || selectedAccessPoint.nombre,
-            },
-          }));
           toast.success("Acceso concedido por el servidor");
         } else {
           toast.error(veredicto.mensaje);
@@ -711,10 +663,6 @@ export default function SimuladorAcceso() {
           : `Acceso permitido para ${empDept}.`,
       });
       toast.success("Acceso concedido (validación local)");
-      setAccessGrants((prev) => ({
-        ...prev,
-        [grantKey]: { hora: effectiveTimeStr, puertaNombre: selectedAccessPoint.nombre },
-      }));
 
       setRecentLogs((prev) => [
         {
@@ -903,11 +851,6 @@ export default function SimuladorAcceso() {
                     ? `El colaborador no tiene autorización para ${selectedAccessPoint.departamento}.`
                     : `El acceso está disponible dentro del horario configurado.`}
                 </p>
-                {currentGrant && (
-                  <p className="pt-2 border-t border-border text-emerald-500 dark:text-emerald-400 font-semibold">
-                    Acceso vigente desde las {currentGrant.hora} en este punto: si valida de nuevo se informará que ya tiene acceso permitido.
-                  </p>
-                )}
               </div>
             )}
 

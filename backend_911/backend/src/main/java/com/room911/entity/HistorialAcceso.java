@@ -8,7 +8,12 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
     name = "historial_acceso",
-    indexes = @Index(name = "indice_historial_acceso_empleado", columnList = "empleado_id")
+    indexes = {
+        @Index(name = "indice_historial_acceso_empleado", columnList = "empleado_id"),
+        // El conteo de aforo y la lista en-planta filtran por salida nula en
+        // cada uso; sin índice la consulta degenera en full scan al crecer.
+        @Index(name = "indice_historial_acceso_salida", columnList = "date_time_salida")
+    }
 )
 @Getter
 @Setter

@@ -93,7 +93,7 @@ CREATE DATABASE reto_room_911;
 
 > **BD preexistente (creada antes de la Fase 20)?** Ejecuta las migraciones en orden
 > **antes** de arrancar el backend (son idempotentes):
-> `psql -d reto_room_911 -f db/v2_arreglos_seguros.sql && psql -d reto_room_911 -f db/v3_renombrado_columnas_fecha.sql`.
+> `psql -d reto_room_911 -f db/v2_arreglos_seguros.sql && psql -d reto_room_911 -f db/v3_renombrado_columnas_fecha.sql && psql -d reto_room_911 -f db/v4_indice_salida_historial.sql`.
 > Una BD fresca no los necesita: Hibernate crea el esquema con columnas `date_time_*`.
 
 ### Backend (Spring Boot 3)

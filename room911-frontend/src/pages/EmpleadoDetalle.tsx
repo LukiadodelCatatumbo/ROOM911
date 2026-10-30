@@ -251,7 +251,7 @@ export default function EmpleadoDetalle() {
             ) : (
               <div className="bg-white dark:bg-card border border-border rounded-lg shadow-2xs overflow-hidden">
                 <div className="p-4 border-b border-border bg-muted/20 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground">Registro de Entradas y Salidas</span>
+                  <span className="text-xs font-semibold text-foreground">Registro de Intentos de Acceso</span>
                   <span className="text-[11px] font-mono text-muted-foreground">Trazabilidad BPF</span>
                 </div>
                 <div className="overflow-x-auto">
@@ -260,7 +260,7 @@ export default function EmpleadoDetalle() {
                       <tr>
                         <th className="px-5 py-2.5 font-semibold">ID Evento</th>
                         <th className="px-5 py-2.5 font-semibold">Fecha y Hora</th>
-                        <th className="px-5 py-2.5 font-semibold">Puerta / Esclusa</th>
+                        <th className="px-5 py-2.5 font-semibold">Departamento</th>
                         <th className="px-5 py-2.5 font-semibold">Resultado</th>
                         <th className="px-5 py-2.5 font-semibold">Detalle Técnico</th>
                       </tr>

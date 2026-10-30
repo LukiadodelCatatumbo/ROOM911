@@ -25,6 +25,13 @@ public interface HistorialAccesoRepository  extends JpaRepository<HistorialAcces
     /** Anti-passback: ¿tiene el empleado un ingreso sin salida registrada? */
     boolean existsByEmpleadoIdAndFechaSalidaIsNull(Long empleadoId);
 
+    /**
+     * Personal en planta: ingresos abiertos (sin salida registrada) para el
+     * panel de aforo y el registro de salidas administrativas.
+     */
+    @EntityGraph(attributePaths = {"empleado", "empleado.departamento"})
+    List<HistorialAcceso> findByFechaSalidaIsNullOrderByFechaIngresoDesc();
+
     @Override
     @EntityGraph(attributePaths = {"empleado", "empleado.departamento"})
     Optional<HistorialAcceso> findById(Long id);

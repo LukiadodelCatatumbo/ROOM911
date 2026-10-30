@@ -1,9 +1,10 @@
 # 📘 Guía: continuar ROOM911 en otro computador (vía GitHub)
 
-> Actualizada con los arreglos hasta las **Fases 17-23** de [`TRAZABILIDAD.md`](./TRAZABILIDAD.md):
+> Actualizada con los arreglos hasta las **Fases 17-26** de [`TRAZABILIDAD.md`](./TRAZABILIDAD.md):
 > paginación de servidor, catálogo único de puntos de acceso (`GET /api/acceso/puntos`),
 > auditoría automática de operaciones, capacidad máxima por departamento, anti-passback
-> server-side y migraciones `db/v2` → `db/v3` (columnas `date_time_*`).
+> server-side, migraciones `db/v2` → `db/v4` (columnas `date_time_*` e índice de salidas)
+> y registro de salidas desde el Dashboard (`Personal en Planta`).
 
 ---
 
@@ -115,6 +116,7 @@ Después, aplica una sola vez los scripts de migración (idempotentes, en orden)
 ```bash
 docker compose exec -T db psql -U postgres -d reto_room_911 < db/v2_arreglos_seguros.sql
 docker compose exec -T db psql -U postgres -d reto_room_911 < db/v3_renombrado_columnas_fecha.sql
+docker compose exec -T db psql -U postgres -d reto_room_911 < db/v4_indice_salida_historial.sql
 ```
 
 > **Importante:** ejecutar v2 y v3 **antes** de arrancar el backend sobre una BD pre-Fase-20.

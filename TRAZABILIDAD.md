@@ -599,3 +599,31 @@
 4. Re-entrada → CONCEDIDO.
 5. `GET /dashboard/resumen` → `enPlanta: 1` (coincide con el ingreso abierto real).
 * `mvn test`: 17/17 en verde, BUILD SUCCESS.
+
+---
+
+### ✅ Fase 26: Hallazgos de la quinta auditoría (post-Fase 25)
+* **Fecha:** 2026-10-30
+* **Objetivo:** Cerrar el ciclo ingreso/salida en la aplicación y corregir los hallazgos medios/bajas de la quinta auditoría.
+
+#### Corregidos:
+1. **[Alta] UI para registrar la salida:** el ciclo entrada→bloqueo→salida→re-entrada ya es completable desde la aplicación. Nuevo endpoint `GET /api/historial-acceso/en-planta` (solo ingresos abiertos, roles SUPER_ADMIN/ADMIN_ACCESOS) y nuevo panel **"Personal en Planta"** en el Dashboard: lista cada ingreso abierto (nombre, documento, departamento, hora de ingreso, observaciones) con botón **"Registrar salida"** que invoca `PUT /historial-acceso/{id}/salida`, refresca aforo y lista, y muestra el mensaje real del backend en error (p. ej. salida ya registrada → 409). Estado vacío elegante y aviso de permisos para ADMIN_SISTEMAS.
+2. **[Media] Zona horaria en Docker:** `TZ=America/Bogota` fijado en el servicio `backend` del compose (documentado en `.env.example`). `LocalDateTime.now()` ya no corre en UTC: `accesosHoy` y los timestamps de auditoría quedan alineados con la validación horaria de los puntos (`America/Bogota`).
+3. **[Media] Índice de aforo:** índice `indice_historial_acceso_salida` sobre `historial_acceso.date_time_salida` (declarado en la entidad y migración idempotente [`db/v4_indice_salida_historial.sql`](./db/v4_indice_salida_historial.sql), aplicada a la BD local). `countByFechaSalidaIsNull` y la lista en-planta dejan de ser full scan.
+4. **[Media] Pre-check local del simulador eliminado:** `SimuladorAcceso` ya no bloquea localmente "por acceso vigente"; toda lectura va al servidor autoritativo y queda auditada. Tras una salida administrativa sin recargar la página, el servidor ahora concede como corresponde. Eliminado el estado `accessGrants` (y su divergencia por punto vs global) del frontend.
+5. **[Media] Paginación de `GET /historial-acceso`:** resuelto por vía distinta a la sugerida: no hay consumidor del listado completo en la app, así que en lugar de paginar el histórico completo se creó el endpoint acotado `GET /en-planta` (siempre acotado por definición: solo ingresos abiertos). El listado completo queda documentado como API administrativa de explotación, no como superficie de UI.
+6. **Bajas de etiquetas:** "Registro de Entradas y Salidas" → "Registro de Intentos de Acceso" (`EmpleadoDetalle`); la columna que mostraba el departamento del intento pasó de "Puerta / Esclusa" a "Departamento" en `HistorialAccesos` (tabla, CSV y PDF), `EmpleadoDetalle` y el feed del Dashboard; placeholder de búsqueda actualizado.
+
+#### Tests nuevos (8, cubren la Fase 25):
+* `AccessServiceImplTest`: acceso concedido abre ingreso automático (empleado, flag y observaciones correctos); anti-passback deniega con mensaje de desbloqueo y no abre ingreso; denegado por credencial no abre ingreso; credencial no registrada audita la evidencia (`documentoIntentado`) sin ingreso.
+* `HistorialAccesoServiceImplTest`: `registrarSalida` cierra el ingreso; rechaza salida duplicada; `guardar` rechaza segundo ingreso abierto; `listarEnPlanta` mapea solo ingresos abiertos.
+
+#### Quedan documentados (no corregidos):
+* **[Media, diseño] Solo salida administrativa:** sin lector de salida ni auto-checkout, un empleado que sale fuera de horario administrativo queda bloqueado y el aforo se infla hasta que un administrador cierre el ingreso. Semántica aprobada en Fase 25; mejora futura sugerida: puerta de salida que llame a un endpoint espejo registrando salida.
+* **[Baja] Rollback pierde el intento exitoso:** el intento y el ingreso automático comparten transacción; si el INSERT del historial falla, el rollback borra también la evidencia de la credencial leída. Se prioriza la consistencia (nunca historial sin concedido); separar transacciones rompería esa garantía.
+* Carrera TOCTOU residual en multi-instancia (documentada en Fase 25).
+
+#### Verificación:
+* `mvn test`: 25/25 en verde (17 previos + 8 nuevos), BUILD SUCCESS. `pnpm build`: sin errores. `pnpm test`: 7/7.
+* Migración v4 aplicada a la BD local: índice verificado con `\di`.
+* E2E en vivo: `GET /api/historial-acceso/en-planta` → 200 `[]` con sesión SUPER_ADMIN.

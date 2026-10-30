@@ -41,6 +41,16 @@ public class HistorialAccesoController {
     }
 
     /**
+     * Personal actualmente en planta (ingresos sin salida registrada):
+     * alimenta el panel de aforo y el registro administrativo de salidas.
+     */
+    @GetMapping("/en-planta")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN_ACCESOS')")
+    public List<HistorialAccesoResponseDTO> listarEnPlanta(){
+        return historialAccesoService.listarEnPlanta();
+    }
+
+    /**
      * Buscar registro por ID
      */
 

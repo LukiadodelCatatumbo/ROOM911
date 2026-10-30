@@ -26,6 +26,10 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 5432
+      # Zona horaria del negocio: los horarios de los puntos se validan en
+      # America/Bogota; sin TZ el contenedor corre en UTC y LocalDateTime.now()
+      # desfasa accesosHoy y los timestamps de auditoría cerca de medianoche.
+      TZ: ${TZ:-America/Bogota}
       DB_NAME: ${DB_NAME:-reto_room_911}
       DB_USERNAME: ${DB_USERNAME:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres_password}
