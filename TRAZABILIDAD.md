@@ -627,3 +627,24 @@
 * `mvn test`: 25/25 en verde (17 previos + 8 nuevos), BUILD SUCCESS. `pnpm build`: sin errores. `pnpm test`: 7/7.
 * Migración v4 aplicada a la BD local: índice verificado con `\di`.
 * E2E en vivo: `GET /api/historial-acceso/en-planta` → 200 `[]` con sesión SUPER_ADMIN.
+
+---
+
+### 🚪 Fase 27: Puerta de salida (cierra el hallazgo de diseño de la quinta auditoría)
+* **Fecha:** 2026-10-30
+* **Objetivo:** Eliminar la dependencia de la salida exclusivamente administrativa: sin lector de salida, un empleado que salía fuera de horario administrativo quedaba bloqueado por anti-passback y el aforo se inflaba hasta la gestión manual.
+
+#### Semántica implementada:
+1. **Nuevo `POST /api/acceso/salida`** (superficie pública `/api/acceso/**`: API key + rate limit, misma que la entrada): cierra el ingreso abierto más reciente del empleado (`findFirstByEmpleadoIdAndFechaSalidaIsNullOrderByFechaIngresoDesc`), anota la salida en `observaciones` del ingreso y registra el intento de evidencia en `intento_acceso`.
+2. **Sin validación de punto, horario ni zona, a propósito:** salir de la planta siempre debe ser posible (incluida una evacuación). La única regla es existencial: sin ingreso abierto se rechaza con "no tiene un ingreso abierto en la planta"; credencial no registrada se audita igual que en la entrada.
+3. **El anti-passback ahora es auto-servicio:** el mensaje de bloqueo guía explícitamente ("puerta de salida o panel administrativo"). El empleado cierra su ciclo en la puerta de salida y vuelve a entrar por sus reglas normales.
+4. **Simulador con modo Entrada/Salida:** control segmentado en la consola; en modo salida el punto, el resumen estimado y el horario quedan deshabilitados (no aplican), y la lectura registra el veredicto del servidor en el log de pruebas.
+5. El panel "Personal en Planta" del Dashboard menciona ambas vías de cierre (puerta de salida o panel); el cierre administrativo `PUT /historial-acceso/{id}/salida` se mantiene intacto.
+
+#### Verificación (ciclo completo end-to-end en vivo contra PostgreSQL):
+1. Entrada (DOOR-COMMON-01) → CONCEDIDO, ingreso abierto.
+2. Segunda entrada → DENEGADO anti-passback con la guía nueva.
+3. `POST /acceso/salida` → CONCEDIDO "Salida registrada", ingreso cerrado.
+4. Salida duplicada → DENEGADO "no tiene un ingreso abierto".
+5. Re-entrada → CONCEDIDO (anti-passback liberado por la propia puerta de salida).
+* `mvn test`: 28/28 en verde (3 nuevos de puerta de salida), BUILD SUCCESS. `pnpm build`: sin errores. `pnpm test`: 7/7.

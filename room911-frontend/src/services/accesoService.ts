@@ -138,6 +138,21 @@ export const accesoService = {
     return response.data;
   },
 
+  /** Puerta de salida (POST /api/acceso/salida): cierra el ingreso abierto del empleado. */
+  async registrarSalidaTerminal(documento: string): Promise<ValidateAccessResponse> {
+    const response = await api.post<AccessResponseBackend>("/acceso/salida", { documento });
+    const data = response.data;
+    return {
+      permitido: data.permitido,
+      resultado: (data.resultado as AccessResult) || (data.permitido ? "CONCEDIDO" : "DENEGADO"),
+      mensaje: data.mensaje || (data.permitido ? "Salida registrada" : "Salida no registrada"),
+      empleadoNombre: data.nombreEmpleado,
+      empleadoId: data.documento || documento,
+      departamento: data.departamento,
+      timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
+    };
+  },
+
   /** Personal en planta: ingresos abiertos (GET /historial-acceso/en-planta). */
   async listarEnPlanta(): Promise<IngresoEnPlanta[]> {
     const response = await api.get<IngresoEnPlanta[]>("/historial-acceso/en-planta");

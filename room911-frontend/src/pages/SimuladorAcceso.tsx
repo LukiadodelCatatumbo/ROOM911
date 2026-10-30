@@ -11,6 +11,7 @@ import {
   Trash2,
   Terminal,
   Clock,
+  LogOut,
 } from "lucide-react";
 import { empleadoService } from "../services/empleadoService";
 import { accesoService } from "../services/accesoService";
@@ -293,6 +294,9 @@ export default function SimuladorAcceso() {
   const [selectedDoorId, setSelectedDoorId] = useState("DOOR-PROD-01");
   const [simulating, setSimulating] = useState(false);
   const [recentLogs, setRecentLogs] = useState<SimulationLog[]>([]);
+  // Dirección de la lectura: entrada (valida punto/horario/zona/anti-passback)
+  // o salida (puerta de salida: cierra el ingreso abierto sin más reglas).
+  const [modo, setModo] = useState<"ENTRADA" | "SALIDA">("ENTRADA");
 
   // Control de horario para probar el acceso con una hora específica.
   const [useSimulatedTime, setUseSimulatedTime] = useState(false);
@@ -503,6 +507,47 @@ export default function SimuladorAcceso() {
         schedules[selectedAccessPoint.id] || DEFAULT_ACCESS_SCHEDULE;
       const credencial =
         targetEmp.codigoQr || targetEmp.documentoIdentidad || targetEmp.id;
+
+      // =========================================================================
+      // MODO SALIDA (puerta de salida, Fase 27): el servidor cierra el ingreso
+      // abierto. Sin horario ni zona: salir siempre debe ser posible.
+      // =========================================================================
+      if (modo === "SALIDA") {
+        try {
+          const veredicto = await accesoService.registrarSalidaTerminal(credencial);
+          setSimulating(false);
+          setResult({
+            status: veredicto.permitido ? "CONCEDIDO" : "DENEGADO",
+            employeeName: veredicto.empleadoNombre || empName,
+            mensaje: veredicto.mensaje,
+            details: "Veredicto del servidor · puerta de salida.",
+          });
+          if (veredicto.permitido) {
+            toast.success(veredicto.mensaje);
+          } else {
+            toast.error(veredicto.mensaje);
+          }
+          setRecentLogs((prev) => [
+            {
+              id: `SIM-${Date.now()}`,
+              hora: effectiveTimeStr,
+              empleadoNombre: veredicto.empleadoNombre || empName,
+              empleadoId: empIdKey,
+              empleadoDept: veredicto.departamento || empDept,
+              puertaNombre: "Puerta de Salida",
+              puertaDept: selectedAccessPoint.departamento,
+              resultado: veredicto.resultado,
+              motivo: veredicto.mensaje,
+              horaLimite: schedule.horaFin,
+            },
+            ...prev,
+          ]);
+        } catch {
+          setSimulating(false);
+          toast.error("No se pudo contactar el servidor para registrar la salida");
+        }
+        return;
+      }
 
       // =========================================================================
       // VEREDICTO DEL SERVIDOR (autoritativo: valida punto, horario, zona y
@@ -753,6 +798,50 @@ export default function SimuladorAcceso() {
               </div>
             </div>
 
+            {/* Dirección de la lectura: entrada o puerta de salida */}
+            <div className="p-3 bg-muted/40 rounded-xl border border-border/70 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                {modo === "ENTRADA" ? (
+                  <ScanLine size={15} className="text-primary shrink-0" />
+                ) : (
+                  <LogOut size={15} className="text-amber-500 shrink-0" />
+                )}
+                <div>
+                  <span className="font-semibold text-foreground block">Dirección de la lectura</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {modo === "ENTRADA"
+                      ? "Entrada: el servidor valida punto, horario, zona y anti-passback"
+                      : "Salida: el servidor cierra el ingreso abierto (sin horario ni zona)"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+                <button
+                  onClick={() => setModo("ENTRADA")}
+                  className={`px-4 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer ${
+                    modo === "ENTRADA"
+                      ? "bg-primary text-white"
+                      : "bg-background text-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-pressed={modo === "ENTRADA"}
+                >
+                  Entrada
+                </button>
+                <button
+                  onClick={() => setModo("SALIDA")}
+                  className={`px-4 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer ${
+                    modo === "SALIDA"
+                      ? "bg-amber-500 text-white"
+                      : "bg-background text-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-pressed={modo === "SALIDA"}
+                >
+                  Salida
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               {/* Colaborador Selector (nombre + cargo) */}
               <div>
@@ -787,8 +876,9 @@ export default function SimuladorAcceso() {
                 </label>
                 <select
                   value={selectedDoorId}
+                  disabled={modo === "SALIDA"}
                   onChange={(e) => setSelectedDoorId(e.target.value)}
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-xs focus:outline-hidden focus:ring-1 focus:ring-primary"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-xs focus:outline-hidden focus:ring-1 focus:ring-primary disabled:opacity-50"
                 >
                   <optgroup label="Zonas permitidas para este cargo">
                     {assignedPoints.map((door) => (
@@ -808,13 +898,15 @@ export default function SimuladorAcceso() {
                   )}
                 </select>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  Puedes probar cualquier punto: el servidor autoriza o deniega según el cargo.
+                  {modo === "SALIDA"
+                    ? "No aplica en modo salida: la puerta de salida no valida punto, horario ni zona."
+                    : "Puedes probar cualquier punto: el servidor autoriza o deniega según el cargo."}
                 </p>
               </div>
             </div>
 
-            {/* Resumen de la prueba */}
-            {selectedEmployee && selectedAccessPoint && (
+            {/* Resumen de la prueba (solo entrada: la estimación es de reglas de entrada) */}
+            {modo === "ENTRADA" && selectedEmployee && selectedAccessPoint && (
               <div className="p-4 rounded-xl bg-muted border border-border space-y-3 text-xs">
                 <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
                   <span className="font-semibold text-foreground">Resumen de acceso (estimación local)</span>
@@ -893,7 +985,11 @@ export default function SimuladorAcceso() {
                 className="w-full py-3 bg-primary hover:bg-primary/90 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 cursor-pointer"
               >
                 <ScanLine size={16} />
-                <span>Simular Validación de Acceso</span>
+                <span>
+                  {modo === "ENTRADA"
+                    ? "Simular Lectura de Entrada"
+                    : "Simular Lectura de Salida"}
+                </span>
               </button>
             </div>
           </div>

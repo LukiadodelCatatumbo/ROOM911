@@ -30,6 +30,17 @@ public class AccesoController {
     }
 
     /**
+     * Puerta de salida (Fase 27): cierra el ingreso abierto del empleado.
+     * Misma superficie pública (API key + rate limit) que la entrada; sin
+     * validación de punto, horario ni zona: salir siempre debe ser posible.
+     */
+    @PostMapping("/salida")
+    public ResponseEntity<AccessResponseDTO> registrarSalida(
+            @Valid @RequestBody AccessRequestDTO dto){
+        return ResponseEntity.ok(accessService.registrarSalida(dto));
+    }
+
+    /**
      * Lista pública mínima para el simulador/terminal (sin documento ni
      * correo). La ruta /api/acceso/** ya es pública en SecurityConfig.
      */

@@ -138,7 +138,8 @@ public class AccessServiceImpl implements AccessService {
                     empleado,
                     false,
                     "Acceso Bloqueado — Ya se encuentra dentro de la planta"
-                            + " (requiere registro de salida)",
+                            + " (requiere registro de salida: puerta de salida"
+                            + " o panel administrativo)",
                     null
             );
         }
@@ -245,6 +246,71 @@ public class AccessServiceImpl implements AccessService {
                         ? observaciones.substring(0, 254) + "…"
                         : observaciones)
                 .build());
+    }
+
+    /**
+     * Puerta de salida (Fase 27): cierra el ingreso abierto más reciente del
+     * empleado y deja la evidencia en intento_acceso. Deliberadamente sin
+     * validación de punto, horario ni zona: ante cualquier duda operativa,
+     * salir de la planta siempre debe ser posible (evacuação incluida).
+     */
+    @Override
+    @Transactional
+    public AccessResponseDTO registrarSalida(AccessRequestDTO dto) {
+
+        String tokenOValor = extraerValorUtil(dto.getDocumento());
+
+        Optional<Empleado> empleadoOpt = buscarEmpleado(tokenOValor);
+        if (empleadoOpt.isEmpty()) {
+            guardarIntento(null, false,
+                    "Salida rechazada: empleado no registrado (" + tokenOValor + ")",
+                    tokenOValor);
+            return AccessResponseDTO.builder()
+                    .permitido(false)
+                    .resultado("DENEGADO")
+                    .mensaje("Empleado no registrado")
+                    .build();
+        }
+
+        Empleado empleado = empleadoOpt.get();
+
+        Optional<HistorialAcceso> ingresoAbierto =
+                historialAccesoRepository
+                        .findFirstByEmpleadoIdAndFechaSalidaIsNullOrderByFechaIngresoDesc(
+                                empleado.getId());
+        if (ingresoAbierto.isEmpty()) {
+            guardarIntento(empleado, false,
+                    "Salida rechazada: sin ingreso abierto en la planta",
+                    empleado.getDocumento());
+            return construirRespuesta(
+                    empleado,
+                    false,
+                    "Salida rechazada: no tiene un ingreso abierto en la planta",
+                    null
+            );
+        }
+
+        HistorialAcceso ingreso = ingresoAbierto.get();
+        ingreso.setFechaSalida(LocalDateTime.now());
+        String notaSalida = "Salida registrada por puerta de salida";
+        String observaciones = ingreso.getObservaciones();
+        String nuevasObservaciones = (observaciones == null || observaciones.isBlank())
+                ? notaSalida
+                : observaciones + " · " + notaSalida;
+        ingreso.setObservaciones(nuevasObservaciones.length() > 255
+                ? nuevasObservaciones.substring(0, 254) + "…"
+                : nuevasObservaciones);
+        historialAccesoRepository.save(ingreso);
+
+        guardarIntento(empleado, true, "Salida registrada: " + ingreso.getObservaciones(),
+                empleado.getDocumento());
+
+        return construirRespuesta(
+                empleado,
+                true,
+                "Salida registrada. Hasta pronto, " + empleado.getNombre(),
+                null
+        );
     }
 
     /**

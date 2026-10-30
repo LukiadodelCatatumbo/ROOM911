@@ -26,6 +26,14 @@ public interface HistorialAccesoRepository  extends JpaRepository<HistorialAcces
     boolean existsByEmpleadoIdAndFechaSalidaIsNull(Long empleadoId);
 
     /**
+     * Ingreso abierto más reciente del empleado: lo cierra la puerta de
+     * salida (POST /api/acceso/salida).
+     */
+    @EntityGraph(attributePaths = {"empleado", "empleado.departamento"})
+    Optional<HistorialAcceso> findFirstByEmpleadoIdAndFechaSalidaIsNullOrderByFechaIngresoDesc(
+            Long empleadoId);
+
+    /**
      * Personal en planta: ingresos abiertos (sin salida registrada) para el
      * panel de aforo y el registro de salidas administrativas.
      */

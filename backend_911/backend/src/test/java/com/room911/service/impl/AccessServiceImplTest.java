@@ -18,10 +18,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -147,6 +149,64 @@ class AccessServiceImplTest {
 
         AccessResponseDTO respuesta = accessService.validarAcceso(
                 AccessRequestDTO.builder().documento("9999999999").puerta("DOOR-TEST-01").build());
+
+        assertFalse(respuesta.getPermitido());
+        verify(historialAccesoRepository, never()).save(any());
+
+        ArgumentCaptor<com.room911.entity.AccessAttempt> captor =
+                ArgumentCaptor.forClass(com.room911.entity.AccessAttempt.class);
+        verify(accessAttemptRepository).save(captor.capture());
+        assertEquals("9999999999", captor.getValue().getDocumentoIntentado());
+        assertFalse(captor.getValue().getExito());
+    }
+
+    // ===================== Puerta de salida (Fase 27) =====================
+
+    @Test
+    @DisplayName("Puerta de salida: cierra el ingreso abierto más reciente")
+    void salidaCierraIngresoAbierto() {
+        when(empleadoRepository.findByDocumento("1020304050")).thenReturn(Optional.of(empleado));
+        HistorialAcceso ingreso = HistorialAcceso.builder()
+                .id(11L)
+                .empleado(empleado)
+                .fechaIngreso(LocalDateTime.now().minusHours(2))
+                .accesoPermitido(true)
+                .observaciones("Ingreso automático: Esclusa de Prueba")
+                .build();
+        when(historialAccesoRepository.findFirstByEmpleadoIdAndFechaSalidaIsNullOrderByFechaIngresoDesc(7L))
+                .thenReturn(Optional.of(ingreso));
+
+        AccessResponseDTO respuesta = accessService.registrarSalida(peticion());
+
+        assertTrue(respuesta.getPermitido());
+        assertNotNull(ingreso.getFechaSalida());
+        assertTrue(ingreso.getObservaciones().contains("Salida registrada"));
+        verify(historialAccesoRepository).save(ingreso);
+        verify(accessAttemptRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("Puerta de salida: sin ingreso abierto se rechaza y no cierra nada")
+    void salidaSinIngresoAbiertoSeRechaza() {
+        when(empleadoRepository.findByDocumento("1020304050")).thenReturn(Optional.of(empleado));
+        when(historialAccesoRepository.findFirstByEmpleadoIdAndFechaSalidaIsNullOrderByFechaIngresoDesc(7L))
+                .thenReturn(Optional.empty());
+
+        AccessResponseDTO respuesta = accessService.registrarSalida(peticion());
+
+        assertFalse(respuesta.getPermitido());
+        assertTrue(respuesta.getMensaje().contains("no tiene un ingreso abierto"));
+        verify(historialAccesoRepository, never()).save(any());
+        verify(accessAttemptRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("Puerta de salida: credencial no registrada audita la evidencia")
+    void salidaNoRegistradoGuardaEvidencia() {
+        when(empleadoRepository.findByDocumento("9999999999")).thenReturn(Optional.empty());
+
+        AccessResponseDTO respuesta = accessService.registrarSalida(
+                AccessRequestDTO.builder().documento("9999999999").build());
 
         assertFalse(respuesta.getPermitido());
         verify(historialAccesoRepository, never()).save(any());

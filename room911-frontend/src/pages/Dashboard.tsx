@@ -384,7 +384,7 @@ export default function Dashboard() {
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
               Ingresos abiertos sin salida registrada: el anti-passback mantiene
-              bloqueado el re-ingreso hasta cerrarlos aquí.
+              bloqueado el re-ingreso hasta cerrarlos aquí o por la puerta de salida.
             </p>
           </div>
           <span
